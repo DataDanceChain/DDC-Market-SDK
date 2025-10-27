@@ -2,9 +2,9 @@ import type { ContractRunner, Eip1193Provider as EthersEip1193Provider, Signer }
 import type { AxiosError } from 'axios';
 
 /**
- * Manager configuration for contract operations init
+ * Manager params for contract operations init
  */
-export interface ManagerConfig {
+export interface ManagerParams {
   /**
    * Signer for contract operations
    */
@@ -20,7 +20,64 @@ export interface ManagerConfig {
 }
 
 /**
- * Network configuration
+ * Manager configuration for Manager Constructor
+ */
+export interface ManagerConfig {
+  /**
+   * Signer for contract operations
+   */
+  signer: Signer;
+  /**
+   *  factory address
+   */
+  factoryAddress: string;
+  /**
+   * Enable debug logging
+   */
+  debug?: boolean;
+  /**
+   *
+   */
+  chainConfig: DDCChainConfig;
+}
+
+/**
+ * DDC Chain configuration
+ */
+export interface DDCChainConfig {
+  /**
+   * Chain ID (e.g., 1 for Ethereum Mainnet, 137 for Polygon)
+   */
+  chainId: number;
+
+  /**
+   * Network name (e.g., "Ethereum Mainnet", "Polygon")
+   */
+  chainName?: string;
+
+  /**
+   * RPC URL for the network
+   */
+  rpc_url?: string;
+
+  /**
+   * Block explorer URL
+   */
+  blockExplorer?: string;
+
+  /**
+   * Native currency symbol
+   */
+  token_symbol: string;
+  /**
+   * DDC explorer URL
+   */
+  explore_url: string;
+}
+
+/**
+ * Network configuration for chain switching
+ * Compatible with EIP-3085 (wallet_addEthereumChain) and EIP-3326 (wallet_switchEthereumChain)
  */
 export interface NetworkConfig {
   /**
@@ -34,7 +91,7 @@ export interface NetworkConfig {
   name?: string;
 
   /**
-   * RPC URL for the network
+   * RPC URL for the network (required for adding new networks)
    */
   rpcUrl?: string;
 
@@ -44,7 +101,7 @@ export interface NetworkConfig {
   blockExplorer?: string;
 
   /**
-   * Native currency symbol
+   * Native currency configuration
    */
   currency?: {
     name: string;
@@ -54,54 +111,9 @@ export interface NetworkConfig {
 }
 
 /**
- * Configuration for DDC Market SDK
- */
-export interface DDCMarketConfig {
-  /**
-   * Provider or Signer for blockchain interactions
-   *
-   * - Use a **Signer** (e.g., `ethers.Wallet` or `provider.getSigner()`) for both read and write operations
-   * - Use a **Provider** (e.g., `JsonRpcProvider`) only for read-only operations
-   *
-   * @example
-   * ```typescript
-   * // For write operations (recommended)
-   * const provider = new ethers.JsonRpcProvider('https://rpc-url');
-   * const signer = new ethers.Wallet('PRIVATE_KEY', provider);
-   * const manager = new DDCNFTManager({ runner: signer });
-   *
-   * // For read-only operations
-   * const provider = new ethers.JsonRpcProvider('https://rpc-url');
-   * const manager = new DDCNFTManager({ runner: provider });
-   * ```
-   */
-  runner: ContractRunner;
-
-  /**
-   * Network configuration (required for chain validation and switching)
-   */
-  // network?: NetworkConfig;
-
-  /**
-   * Enable debug logging
-   */
-  debug?: boolean;
-}
-
-/**
  * DDCNFT Factory Contract Address  TODO remove
  */
 export interface DDCNFTFactoryConfig {
-  /**
-   * Factory contract address
-   */
-  factoryAddress: string;
-}
-
-/**
- * Membership Factory Contract Address
- */
-export interface MembershipFactoryConfig {
   /**
    * Factory contract address
    */
@@ -124,6 +136,56 @@ export interface DeploymentResult {
 
   /**
    * Block number where contract was deployed
+   */
+  blockNumber?: number;
+}
+
+/**
+ * Token mint result
+ */
+export interface MintResult {
+  /**
+   * Minted token ID
+   */
+  tokenId: bigint;
+
+  /**
+   * Recipient address hash (bytes32)
+   */
+  to: string;
+
+  /**
+   * Transaction hash
+   */
+  transactionHash: string;
+
+  /**
+   * Block number where token was minted
+   */
+  blockNumber?: number;
+}
+
+/**
+ * Token destroy (burn) result
+ */
+export interface DestroyResult {
+  /**
+   * Destroyed token ID
+   */
+  tokenId: bigint;
+
+  /**
+   * Previous owner address hash (bytes32)
+   */
+  from: string;
+
+  /**
+   * Transaction hash
+   */
+  transactionHash: string;
+
+  /**
+   * Block number where token was destroyed
    */
   blockNumber?: number;
 }

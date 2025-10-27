@@ -17,6 +17,44 @@ export function createContract(address: string, abi: InterfaceAbi, runner: Signe
 }
 
 /**
+ * Decorator to ensure MembershipManager instance is initialized before method execution
+ * Checks if factoryContract and signer exist as proxy for initialization state
+ */
+export function ensureInitialized(
+  _target: any,
+  propertyKey: string,
+  descriptor: PropertyDescriptor
+): PropertyDescriptor {
+  const originalMethod = descriptor.value;
+
+  descriptor.value = function (this: any, ...args: any[]) {
+    if (!this.signer || !this.membershipAddress) {
+      throw new SDKError(
+        'MembershipManager not initialized. Please call MembershipManager.init() first.',
+        'NOT_INITIALIZED',
+        { method: propertyKey }
+      );
+    }
+    return originalMethod.apply(this, args);
+  };
+
+  return descriptor;
+}
+
+/**
+ * push address to target without duplicates
+ * @param this - MembershipManager instance
+ * @returns true if initialized, false otherwise
+ */
+export function addAddress(target: Array<string>, address: string): Array<string> {
+  if (target.includes(address)) {
+    return target;
+  }
+  target.push(address);
+  return target;
+}
+
+/**
  * Check if the runner is a Signer (can sign transactions)
  * In ethers.js v6, Signers have signMessage and sendTransaction methods
  * @param runner - The contract runner to check

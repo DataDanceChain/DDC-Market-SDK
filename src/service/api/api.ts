@@ -11,202 +11,126 @@ import type { ApiResponse, ApiRequestConfig } from '../../types';
  */
 export async function getDDCConfig(
   data: {
-  
-  /** 钱包地址 可选
- */
-  address?: string;
-},
+    /** 钱包地址 可选
+     */
+    address?: string;
+  },
   config?: ApiRequestConfig
-): Promise<ApiResponse<{
-  
-  /** nft 工厂合约的地址  用于部署商户NFT 合约
- */
-  nft_factory_address: string;
-  
-  /** membership 工厂合约的地址 */
-  membership_factory_address: string;
-  metadata_url: string;
-  
-  /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在
- */
-  nft_address?: string;
-  
-  /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在
- */
-  membership_address?: string;
-  
-  /** ddc 的 rpc 网络配置信息, 同 metamask 钱包上的配置
+): Promise<
+  ApiResponse<{
+    /** nft 工厂合约的地址  用于部署商户NFT 合约
+     */
+    nft_factory_address: string;
+
+    /** membership 工厂合约的地址 */
+    membership_factory_address: string;
+    metadata_url: string;
+
+    /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在
+     */
+    nft_address?: Array<string>;
+
+    /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在
+     */
+    membership_address?: Array<string>;
+
+    /** ddc 的 rpc 网络配置信息, 同 metamask 钱包上的配置
 
  */
-  network: {
-  chainId: number;
-  chainName: string;
-  rpc_url: string;
-  token_symbol: string;
-  explore_url: string;
-};
-}>> {
+    network: {
+      chainId: number;
+      chainName: string;
+      rpc_url: string;
+      token_symbol: string;
+      explore_url: string;
+    };
+  }>
+> {
   return requestPost<{
-  
-  /** nft 工厂合约的地址  用于部署商户NFT 合约
- */
-  nft_factory_address: string;
-  
-  /** membership 工厂合约的地址 */
-  membership_factory_address: string;
-  metadata_url: string;
-  
-  /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在
- */
-  nft_address?: string;
-  
-  /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在
- */
-  membership_address?: string;
-  
-  /** ddc 的 rpc 网络配置信息, 同 metamask 钱包上的配置
+    /** nft 工厂合约的地址  用于部署商户NFT 合约
+     */
+    nft_factory_address: string;
+
+    /** membership 工厂合约的地址 */
+    membership_factory_address: string;
+    metadata_url: string;
+
+    /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在
+     */
+    nft_address?: Array<string>;
+
+    /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在
+     */
+    membership_address?: Array<string>;
+
+    /** ddc 的 rpc 网络配置信息, 同 metamask 钱包上的配置
 
  */
-  network: {
-  chainId: number;
-  chainName: string;
-  rpc_url: string;
-  token_symbol: string;
-  explore_url: string;
-};
-}>(`/config`, data, config);
+    network: {
+      chainId: number;
+      chainName: string;
+      rpc_url: string;
+      token_symbol: string;
+      explore_url: string;
+    };
+  }>(`/config`, data, config);
 }
 
 /**
- * SetNFTPrivateKey
- * 存储用户mint nft 所用的 key 的hash 的私钥 参见 DDC Contract
- * @path POST /setNftPrivateKey
+ * GetNftHash
+ * 获取 存储的用户transfer nft 所用的 Recipient 的hash 参见 DDC Contract
+ * @path POST /getNfttHash
  */
-export async function setNFTPrivateKey(
+export async function getNftHash(
   data: {
-  
-  /** 商户钱包地址 */
-  address: string;
-  
-  /** 私钥的值  没有的情况下 有前端随机生成 */
-  private_key: string;
-},
+    /** 商户钱包地址 */
+    address: string;
+  },
   config?: ApiRequestConfig
-): Promise<ApiResponse<{
-  code: number;
-  data: {
-  
-  /** 返回是否成功 */
-  result: boolean;
-};
-  message: string;
-}>> {
+): Promise<
+  ApiResponse<{
+    code: number;
+    data: {
+      /** 返回 receipt
+私钥的Hash */
+      receiptHash: string;
+    };
+    message: string;
+  }>
+> {
   return requestPost<{
-  code: number;
-  data: {
-  
-  /** 返回是否成功 */
-  result: boolean;
-};
-  message: string;
-}>(`/setNftPrivateKey`, data, config);
+    code: number;
+    data: {
+      /** 返回 receipt
+私钥的Hash */
+      receiptHash: string;
+    };
+    message: string;
+  }>(`/getNfttHash`, data, config);
 }
 
 /**
- * GetNFTPrivateKey
- * 获取 存储的用户mint nft 所用的 key 的hash 的私钥 参见 DDC Contract
- * @path POST /getNftPrivateKey
+ * SetNftAddress
+ * @path POST /setNftAddress
  */
-export async function getNFTPrivateKey(
+export async function setNftAddress(
   data: {
-  
-  /** 商户钱包地址 */
-  address: string;
-},
+    address: string;
+  },
   config?: ApiRequestConfig
-): Promise<ApiResponse<{
-  code: number;
-  data: {
-  
-  /** 返回 私钥的值 */
-  result: string;
-};
-  message: string;
-}>> {
-  return requestPost<{
-  code: number;
-  data: {
-  
-  /** 返回 私钥的值 */
-  result: string;
-};
-  message: string;
-}>(`/getNftPrivateKey`, data, config);
+): Promise<ApiResponse<unknown>> {
+  return requestPost<unknown>(`/setNftAddress`, data, config);
 }
 
 /**
- * SetRecipientKey
- * 存储用户transfer nft 所用的Recipient 的hash 的私钥 参见 DDC Contract
- * @path POST /setRecipientKey
+ * SetMembershipAddress
+ * @path POST /setMembershipAddress
  */
-export async function setRecipientKey(
+export async function setMembershipAddress(
   data: {
-  
-  /** 商户钱包地址 */
-  address: string;
-  
-  /** 私钥的值  没有的情况下 有前端随机生成 */
-  private_key: string;
-},
+    address: string;
+  },
   config?: ApiRequestConfig
-): Promise<ApiResponse<{
-  code: number;
-  data: {
-  
-  /** 返回是否成功 */
-  result: boolean;
-};
-  message: string;
-}>> {
-  return requestPost<{
-  code: number;
-  data: {
-  
-  /** 返回是否成功 */
-  result: boolean;
-};
-  message: string;
-}>(`/setRecipientKey`, data, config);
-}
-
-/**
- * GetNftRecipientKey
- * 获取 存储的用户transfer nft 所用的 Recipient 的hash 的私钥 参见 DDC Contract
- * @path POST /getNftRecipientKey
- */
-export async function getNftRecipientKey(
-  data: {
-  
-  /** 商户钱包地址 */
-  address: string;
-},
-  config?: ApiRequestConfig
-): Promise<ApiResponse<{
-  code: number;
-  data: {
-  
-  /** 返回 私钥的值 */
-  result: string;
-};
-  message: string;
-}>> {
-  return requestPost<{
-  code: number;
-  data: {
-  
-  /** 返回 私钥的值 */
-  result: string;
-};
-  message: string;
-}>(`/getNftRecipientKey`, data, config);
+): Promise<ApiResponse<unknown>> {
+  return requestPost<unknown>(`/setMembershipAddress`, data, config);
 }
