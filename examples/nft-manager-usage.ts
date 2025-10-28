@@ -8,7 +8,9 @@
  */
 
 import { ethers } from 'ethers';
-import { DDCNFTManager, NetworkConfig, SDKError } from '@ddc-market/sdk';
+import { DDCNFTManager } from '../src/ddcnft/DDCNFTManager';
+import { NetworkConfig } from '../src/types';
+import { SDKError } from '../src/types';
 
 // Example: Polygon Network Configuration
 const POLYGON_NETWORK: NetworkConfig = {
@@ -129,15 +131,14 @@ async function main() {
         const userMessages: Record<string, string> = {
           WRONG_NETWORK: 'Please switch to the correct network in your wallet',
           USER_REJECTED: 'You cancelled the transaction',
-          INSUFFICIENT_FUNDS: 'You don\'t have enough funds to complete this transaction',
+          INSUFFICIENT_FUNDS: "You don't have enough funds to complete this transaction",
           CONTRACT_CALL_FAILED:
             'The contract call failed. You may not have permission to perform this action',
           NETWORK_VALIDATION_ERROR: 'Could not validate your network connection',
           INVALID_ADDRESS: 'The provided address is not valid',
         };
 
-        const userMessage =
-          userMessages[error.code] || 'An unexpected error occurred';
+        const userMessage = userMessages[error.code] || 'An unexpected error occurred';
         console.log('\n💡 User-friendly message:', userMessage);
       } else {
         console.error('Unexpected error:', error);

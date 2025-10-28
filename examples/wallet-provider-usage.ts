@@ -6,7 +6,7 @@
  * 2. Web3Auth Embedded Wallets (MetaMask Embedded Wallets SDK)
  */
 
-import { getProvider, getSigner } from '../src/utils/wallet';
+import { getSigner } from '../src/utils/wallet';
 
 // ============================================================================
 // Scenario 1: MetaMask or Standard Browser Wallets
@@ -15,27 +15,27 @@ import { getProvider, getSigner } from '../src/utils/wallet';
 /**
  * Example: Using MetaMask (auto-detected from window.ethereum)
  */
-async function useMetaMask() {
-  try {
-    // Get provider - automatically detects window.ethereum
-    const provider = await getProvider();
+// async function useMetaMask() {
+//   try {
+//     // Get provider - automatically detects window.ethereum
+//     const provider = await getProvider();
 
-    // Get network info
-    const network = await provider.getNetwork();
-    console.log('Connected to network:', network.name, 'Chain ID:', network.chainId);
+//     // Get network info
+//     const network = await provider.getNetwork();
+//     console.log('Connected to network:', network.name, 'Chain ID:', network.chainId);
 
-    // Get signer (will request account access if not already granted)
-    const signer = await getSigner();
-    const address = await signer.getAddress();
-    console.log('Connected wallet address:', address);
+//     // Get signer (will request account access if not already granted)
+//     const signer = await getSigner();
+//     const address = await signer.getAddress();
+//     console.log('Connected wallet address:', address);
 
-    // Check balance
-    const balance = await provider.getBalance(address);
-    console.log('Balance:', balance.toString());
-  } catch (error) {
-    console.error('MetaMask connection error:', error);
-  }
-}
+//     // Check balance
+//     const balance = await provider.getBalance(address);
+//     console.log('Balance:', balance.toString());
+//   } catch (error) {
+//     console.error('MetaMask connection error:', error);
+//   }
+// }
 
 // ============================================================================
 // Scenario 2: Web3Auth Embedded Wallets
@@ -111,24 +111,24 @@ async function useWeb3Auth() {
  * Example: Using Web3Auth from global window.web3auth
  * Assumes Web3Auth is already initialized and connected elsewhere in your app
  */
-async function useWeb3AuthFromWindow() {
-  try {
-    // Check if Web3Auth is available on window
-    if (!window.web3auth?.provider) {
-      throw new Error('Web3Auth not found. Please initialize and connect first.');
-    }
+// async function useWeb3AuthFromWindow() {
+//   try {
+//     // Check if Web3Auth is available on window
+//     if (!window.web3auth?.provider) {
+//       throw new Error('Web3Auth not found. Please initialize and connect first.');
+//     }
 
-    // Get provider - automatically detects window.web3auth.provider
-    const provider = await getProvider();
+//     // Get provider - automatically detects window.web3auth.provider
+//     const provider = await getProvider();
 
-    // Get signer
-    const signer = await getSigner();
-    const address = await signer.getAddress();
-    console.log('Connected wallet address:', address);
-  } catch (error) {
-    console.error('Web3Auth (window) connection error:', error);
-  }
-}
+//     // Get signer
+//     const signer = await getSigner();
+//     const address = await signer.getAddress();
+//     console.log('Connected wallet address:', address);
+//   } catch (error) {
+//     console.error('Web3Auth (window) connection error:', error);
+//   }
+// }
 
 // ============================================================================
 // Scenario 4: Sending a Transaction
@@ -137,29 +137,29 @@ async function useWeb3AuthFromWindow() {
 /**
  * Example: Send transaction with either MetaMask or Web3Auth
  */
-async function sendTransaction(recipientAddress: string, amountInEther: string) {
-  try {
-    // Works with both MetaMask and Web3Auth
-    // For Web3Auth, pass { web3auth } option
-    const signer = await getSigner();
+// async function sendTransaction(recipientAddress: string, amountInEther: string) {
+//   try {
+//     // Works with both MetaMask and Web3Auth
+//     // For Web3Auth, pass { web3auth } option
+//     const signer = await getSigner();
 
-    const tx = await signer.sendTransaction({
-      to: recipientAddress,
-      value: ethers.parseEther(amountInEther),
-    });
+//     const tx = await signer.sendTransaction({
+//       to: recipientAddress,
+//       value: ethers.parseEther(amountInEther),
+//     });
 
-    console.log('Transaction sent:', tx.hash);
+//     console.log('Transaction sent:', tx.hash);
 
-    // Wait for confirmation
-    const receipt = await tx.wait();
-    console.log('Transaction confirmed in block:', receipt?.blockNumber);
+//     // Wait for confirmation
+//     const receipt = await tx.wait();
+//     console.log('Transaction confirmed in block:', receipt?.blockNumber);
 
-    return receipt;
-  } catch (error) {
-    console.error('Transaction error:', error);
-    throw error;
-  }
-}
+//     return receipt;
+//   } catch (error) {
+//     console.error('Transaction error:', error);
+//     throw error;
+//   }
+// }
 
 // ============================================================================
 // Type-safe Usage with Web3Auth Types
@@ -171,7 +171,6 @@ async function sendTransaction(recipientAddress: string, amountInEther: string) 
 async function typeSafeWeb3Auth() {
   // Import Web3AuthInstance type for type safety
   // import type { Web3AuthInstance } from '../src/types';
-
   /*
   // Create Web3Auth instance with proper typing
   const web3auth: Web3AuthInstance = new Web3Auth({
@@ -202,37 +201,36 @@ async function typeSafeWeb3Auth() {
 /**
  * Example: Proper error handling for both scenarios
  */
-async function handleErrors() {
-  try {
-    const provider = await getProvider();
-    const signer = await getSigner();
-    // ... use provider and signer
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message.includes('No wallet provider found')) {
-        console.error('No wallet detected. Please install MetaMask or connect Web3Auth');
-        // Show UI to guide user to install wallet or connect Web3Auth
-      } else if (error.message.includes('User rejected')) {
-        console.error('User rejected the connection request');
-        // Show UI message to user
-      } else if (error.message.includes('browser environment')) {
-        console.error('This code must run in a browser');
-      } else {
-        console.error('Unexpected error:', error.message);
-      }
-    }
-  }
-}
+// async function handleErrors() {
+//   try {
+//     const provider = await getProvider();
+//     const signer = await getSigner();
+//     // ... use provider and signer
+//   } catch (error) {
+//     if (error instanceof Error) {
+//       if (error.message.includes('No wallet provider found')) {
+//         console.error('No wallet detected. Please install MetaMask or connect Web3Auth');
+//         // Show UI to guide user to install wallet or connect Web3Auth
+//       } else if (error.message.includes('User rejected')) {
+//         console.error('User rejected the connection request');
+//         // Show UI message to user
+//       } else if (error.message.includes('browser environment')) {
+//         console.error('This code must run in a browser');
+//       } else {
+//         console.error('Unexpected error:', error.message);
+//       }
+//     }
+//   }
+// }
 
 // Export examples for testing
-export {
-  useMetaMask,
-  useWeb3Auth,
-  useWeb3AuthFromWindow,
-  sendTransaction,
-  typeSafeWeb3Auth,
-  handleErrors,
-};
+export // useMetaMask,
+// useWeb3Auth,
+// // useWeb3AuthFromWindow,
+// sendTransaction,
+// typeSafeWeb3Auth,
+// handleErrors,
+ {};
 
 // Note: Import ethers for the sendTransaction example
 import { ethers } from 'ethers';

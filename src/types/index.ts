@@ -111,16 +111,6 @@ export interface NetworkConfig {
 }
 
 /**
- * DDCNFT Factory Contract Address  TODO remove
- */
-export interface DDCNFTFactoryConfig {
-  /**
-   * Factory contract address
-   */
-  factoryAddress: string;
-}
-
-/**
  * Base contract deployment result
  */
 export interface DeploymentResult {
@@ -188,41 +178,6 @@ export interface DestroyResult {
    * Block number where token was destroyed
    */
   blockNumber?: number;
-}
-
-/**
- * DDCNFT Metadata
- */
-export interface DDCNFTMetadata {
-  name: string;
-  description?: string;
-  image?: string;
-  external_url?: string;
-  attributes?: Array<{
-    trait_type: string;
-    value: string | number;
-  }>;
-  [key: string]: unknown;
-}
-
-/**
- * Token mint parameters
- */
-export interface MintParams {
-  to: string;
-  tokenId?: bigint;
-  metadata?: DDCNFTMetadata;
-}
-
-/**
- * Membership tier configuration
- */
-export interface MembershipTier {
-  tierId: number;
-  name: string;
-  price: bigint;
-  duration: number; // in seconds
-  benefits?: string[];
 }
 
 /**
@@ -342,23 +297,20 @@ declare global {
      * Standard Ethereum provider (MetaMask, injected wallets)
      * EIP-1193 compatible provider injected by browser wallets
      */
-    ethereum?: EthereumProvider;
-
+    // ethereum?: EthereumProvider;
     /**
      * WalletConnect provider instance
      */
-    walletConnect?: WalletConnectProvider;
-
+    // walletConnect?: WalletConnectProvider;
     /**
      * Coinbase Wallet extension provider
      */
-    coinbaseWalletExtension?: CoinbaseWalletProvider;
-
+    // coinbaseWalletExtension?: CoinbaseWalletProvider;
     /**
      * Web3Auth SDK instance
      * Access the provider via: window.web3auth.provider
      */
-    web3auth?: Web3AuthInstance;
+    // web3auth?: Web3AuthInstance;
   }
 }
 

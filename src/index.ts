@@ -9,26 +9,24 @@ export { MembershipManager } from './membership';
 
 // Export types
 export type {
-  DDCMarketConfig,
-  DDCNFTFactoryConfig,
-  MembershipFactoryConfig,
+  MintResult,
+  DestroyResult,
   DeploymentResult,
-  DDCNFTMetadata,
-  MintParams,
-  MembershipTier,
   NetworkConfig,
+  ManagerConfig,
+  ManagerParams,
+  DDCChainConfig,
 } from './types';
 
 export { SDKError } from './types';
 
 // Export utilities
 export {
-  isValidAddress,
   validateAddress,
-  getChecksumAddress,
   Logger,
   getCurrentNetwork,
   ensureCorrectNetwork,
+  getKeyHash,
 } from './utils';
 
 // Export HTTP service

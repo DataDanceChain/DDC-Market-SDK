@@ -58,43 +58,51 @@ DDC-Market-SDK/
 ### Source Code (`src/`)
 
 #### `src/ddcnft/DDCNFTManager.ts`
+
 - DDCNFT Management API implementation
 - Methods: deployDDCNFT, mint, transfer, setBaseURI, getTokenURI
 - Handles NFT contract deployment and operations
 
 #### `src/membership/MembershipManager.ts`
+
 - Membership Management API implementation
 - Methods: deployMembership, setMembershipTier, purchaseMembership, verifyMembership
 - Handles membership contract deployment and operations
 
 #### `src/types/index.ts`
+
 - TypeScript type definitions for the SDK
-- Includes: DDCMarketConfig, DeploymentResult, DDCNFTMetadata, MembershipTier
+- Includes: DDCMarketConfig, DeploymentResult
 - Custom SDKError class
 
 #### `src/utils/contract.ts`
+
 - Utility functions for contract operations
 - Address validation
 - Contract instance creation helpers
 
 #### `src/index.ts`
+
 - Main SDK entry point
 - Exports all public APIs and types
 
 ### Configuration Files
 
 #### `package.json`
+
 - Package name: `@ddc-market/sdk`
 - Supports dual module formats (ESM + CJS)
 - Dependencies: ethers v6
 - Scripts: build, clean, dev, prepublishOnly
 
 #### TypeScript Configurations
+
 - `tsconfig.json`: Base configuration
 - `tsconfig.esm.json`: ESM-specific config (moduleResolution: bundler)
 - `tsconfig.cjs.json`: CJS-specific config (moduleResolution: node)
 
 #### Build Output
+
 - ESM: `dist/esm/` - Modern ES modules
 - CJS: `dist/cjs/` - CommonJS for Node.js compatibility
 - Both include TypeScript declaration files (`.d.ts`)

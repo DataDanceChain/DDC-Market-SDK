@@ -10,7 +10,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
 
     /* Emit */
     "declaration": true,
