@@ -28,7 +28,7 @@ export interface ManagerConfig {
    */
   signer: Signer;
   /**
-   *  factory address
+   * DDCNFT factory contract address
    */
   factoryAddress: string;
   /**
@@ -36,7 +36,7 @@ export interface ManagerConfig {
    */
   debug?: boolean;
   /**
-   *
+   * Chain configuration
    */
   chainConfig: DDCChainConfig;
 }

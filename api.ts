@@ -1,11 +1,49 @@
-// OpenAPI Code Generator for DDC Market SDK
-// Generates TypeScript API client code from OpenAPI specification
-
-// Organize generated code according to directory structure:
-// - APIs in the same directory are placed in the same file
-// - File name is the directory name
-// - Each API is a TypeScript function
-// - Automatically generate complete type definitions
+/**
+ * OpenAPI Code Generator for DDC Market SDK
+ *
+ * Automatically generates TypeScript API client code from OpenAPI specification
+ *
+ * ## File Organization Strategy
+ *
+ * 1. **Grouping by Path**: Endpoints are grouped by the first path segment
+ *    - `/nft/contract` + `/nft/address` → `nft.ts`
+ *    - `/ddc/config` → `ddc.ts`
+ *    - `/membership/address` → `membership.ts`
+ *
+ * 2. **Function Naming**: Generated from OpenAPI summary (priority) or path
+ *    - Summary: "GetDDCConfig" → function `getDDCConfig()`
+ *    - Summary: "SetNftAddress" → function `setNftAddress()`
+ *    - If no summary, auto-generate from path and method
+ *
+ * 3. **Type Generation**: All schema definitions are extracted to `types.ts`
+ *    - Interfaces for request/response bodies
+ *    - Inline types for simple parameters
+ *
+ * ## Generated Structure
+ *
+ * ```
+ * src/service/api/
+ * ├── types.ts          # All TypeScript type definitions
+ * ├── nft.ts            # NFT-related endpoints
+ * ├── ddc.ts            # DDC config endpoints
+ * ├── membership.ts     # Membership endpoints
+ * └── index.ts          # Exports all API functions
+ * ```
+ *
+ * ## Usage
+ *
+ * ```bash
+ * # Generate API code from OpenAPI spec
+ * npm run api:generate
+ * ```
+ *
+ * ```typescript
+ * // Use generated API functions
+ * import { getDDCConfig, setNftAddress } from '@/service/api';
+ *
+ * const result = await getDDCConfig({ address: '0x...' });
+ * ```
+ */
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -21,6 +59,17 @@ const CONFIG = {
 
   // Output directory - generated to service/api directory
   outputDir: path.join(__dirname, 'src/service/api'),
+
+  // Grouping strategy
+  grouping: {
+    // How many path segments to use for grouping
+    // 1: /nft/contract → nft.ts
+    // 2: /api/v1/users → api-v1.ts
+    depth: 1,
+
+    // Whether to include verbose logging during generation
+    verbose: true,
+  },
 };
 
 interface OpenAPISchema {
@@ -218,48 +267,83 @@ function generateTypes(spec: OpenAPISchema): string {
 
 /**
  * Extract directory name from path
- * Example: /api/users/{id} => api
- *          /api/v1/products => api-v1
- *          /config => api (root level)
- *          /users/profile => users
+ *
+ * Strategy: Use the first meaningful path segment as the file name
+ *
+ * Examples:
+ *   /nft/contract        => nft
+ *   /ddc/config          => ddc
+ *   /membership/address  => membership
+ *   /api/users/{id}      => api
+ *   /users/profile       => users
+ *   /config              => api (fallback for root level)
+ *
+ * @param apiPath - API endpoint path
+ * @returns Directory name to group this endpoint
  */
 function extractDirectoryName(apiPath: string): string {
-  // Remove leading/trailing slashes and parameters
-  const parts = apiPath.split('/').filter((p) => p && !p.startsWith('{'));
+  // Remove leading/trailing slashes and filter out:
+  // - Empty parts
+  // - Path parameters (e.g., {id})
+  // - Common prefixes we want to skip (none for now, all kept)
+  const parts = apiPath
+    .split('/')
+    .filter((p) => p && !p.startsWith('{'));
 
-  // If there are multiple parts, use the first meaningful directory
-  // Example: /api/users => 'api', /users/profile => 'users'
-  if (parts.length > 1) {
+  // Use the first meaningful part as the directory name
+  // This groups all endpoints with the same first path segment
+  if (parts.length > 0) {
     return parts[0];
   }
 
-  // If only one part or root level endpoints, group them in 'api'
+  // Fallback for root level endpoints (e.g., "/")
   return 'api';
 }
 
 /**
  * Group endpoints by directory
+ *
+ * Groups all endpoints that share the same path prefix into a single file
+ *
+ * @param spec - OpenAPI specification
+ * @returns Map of directory names to endpoint groups
  */
 function groupEndpointsByDirectory(spec: OpenAPISchema): Map<string, EndpointGroup> {
   const groups = new Map<string, EndpointGroup>();
 
+  if (CONFIG.grouping.verbose) {
+    console.log('\n📂 Grouping endpoints by directory...');
+  }
+
   for (const [path, methods] of Object.entries(spec.paths)) {
     const directory = extractDirectoryName(path);
 
+    // Create group if it doesn't exist
     if (!groups.has(directory)) {
       groups.set(directory, {
         directory,
         fileName: directory,
         endpoints: [],
       });
+      if (CONFIG.grouping.verbose) {
+        console.log(`   ✨ Created group: ${directory}`);
+      }
     }
 
+    // Add all methods for this path to the group
     for (const [method, operation] of Object.entries(methods)) {
+      const functionName = generateFunctionName(path, method, operation);
       groups.get(directory)!.endpoints.push({
         path,
         method,
         operation,
       });
+
+      if (CONFIG.grouping.verbose) {
+        console.log(
+          `   📍 ${directory}.ts: ${method.toUpperCase().padEnd(6)} ${path.padEnd(30)} → ${functionName}()`
+        );
+      }
     }
   }
 
@@ -268,34 +352,65 @@ function groupEndpointsByDirectory(spec: OpenAPISchema): Map<string, EndpointGro
 
 /**
  * Generate function name from operation
- * Priority: operationId > summary > generated from path
+ *
+ * Priority order:
+ * 1. operationId (if provided in OpenAPI spec)
+ * 2. summary (converted to camelCase)
+ * 3. Auto-generated from path and method
+ *
+ * Examples:
+ *   summary: "GetDDCConfig"       => getDDCConfig
+ *   summary: "SetNftAddress"      => setNftAddress
+ *   summary: "Get User Profile"   => getUserProfile
+ *   path: /users/{id}, method: GET => getUsers
+ *
+ * @param path - API endpoint path
+ * @param method - HTTP method
+ * @param operation - OpenAPI operation object
+ * @returns camelCase function name
  */
 function generateFunctionName(path: string, method: string, operation: PathItemObject): string {
-  // Priority 1: Use operationId if available
+  // Priority 1: Use operationId if available (already camelCase by convention)
   if (operation.operationId) {
     return operation.operationId;
   }
 
-  // Priority 2: Use summary if available (convert PascalCase to camelCase)
+  // Priority 2: Use summary if available
+  // Convert PascalCase/Title Case to camelCase
   if (operation.summary) {
-    // Remove special characters and whitespace, then convert to camelCase
+    // Remove special characters and spaces, keep alphanumeric only
     let name = operation.summary
-      .replace(/[^a-zA-Z0-9]/g, '') // Remove special chars and spaces
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
       .trim();
 
     if (name) {
-      // Convert PascalCase to camelCase (lowercase first letter)
-      name = name.charAt(0).toLowerCase() + name.slice(1);
+      // Split by spaces and convert to camelCase
+      const words = name.split(/\s+/);
+      if (words.length > 1) {
+        // Multiple words: "Get User Profile" => "getUserProfile"
+        name = words
+          .map((word, index) => {
+            if (index === 0) {
+              return word.charAt(0).toLowerCase() + word.slice(1);
+            }
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+          })
+          .join('');
+      } else {
+        // Single word: "GetDDCConfig" => "getDDCConfig"
+        name = name.charAt(0).toLowerCase() + name.slice(1);
+      }
       return name;
     }
   }
 
-  // Priority 3: Generate from path and method
+  // Priority 3: Auto-generate from path and method
+  // Example: GET /api/users/{id} => getApiUsers
   const pathParts = path
     .split('/')
-    .filter((p) => p && !p.startsWith('{'))
-    .filter((p) => p !== 'api' && !p.match(/^v\d+$/))
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1));
+    .filter((p) => p && !p.startsWith('{')) // Remove empty and params
+    .filter((p) => p !== 'api' && !p.match(/^v\d+$/)) // Remove 'api' prefix and version numbers
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1)); // Capitalize each part
 
   const methodPrefix = method.toLowerCase();
   return methodPrefix + pathParts.join('');

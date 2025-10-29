@@ -24,10 +24,11 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "vite build --mode production",
-    "build:dev": "vite build --mode development",
-    "build:prod": "vite build --mode production",
+    "build": "vite build --mode production && pnpm run copy:dts",
+    "build:dev": "vite build --mode development && pnpm run copy:dts",
+    "build:prod": "vite build --mode production && pnpm run copy:dts",
     "clean": "rm -rf dist",
+    "copy:dts": "mkdir -p dist/cjs && cp dist/esm/*.d.ts dist/cjs/ 2>/dev/null || true",
     "dev": "vite build --mode development --watch",
     "prepublishOnly": "pnpm run clean && pnpm run build",
     "test": "echo \"Error: no test specified\" && exit 1",

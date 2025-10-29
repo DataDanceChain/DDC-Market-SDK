@@ -1,4 +1,4 @@
-import { Contract, ContractTransactionResponse, Signer } from 'ethers';
+import { Contract, ContractTransactionResponse, Signer, ContractFactory } from 'ethers';
 import type {
   DeploymentResult,
   MintResult,
@@ -10,8 +10,9 @@ import type {
 import { SDKError } from '../types';
 import { createContract, validateAddress, ensureCorrectNetwork, Logger } from '../utils';
 import { MEMBERSHIP_ABI, MEMBERSHIP_FACTORY_ABI } from '../abi';
-import { getDDCConfig, setMembershipAddress } from '../service/api/api';
-import { ensureInitialized, addAddress } from '../utils/contract';
+import { getDDCConfig, setMembershipAddress, setMembershipFactoryAddress } from '../service/api';
+import { ensureFactoryDeployed, ensureMembershipDeployed, addAddress } from '../utils/contract';
+import MembershipFactoryJson from '../abi/MembershipFactory.json';
 
 /**
  * Membership Management API
@@ -35,13 +36,16 @@ export class MembershipManager {
 
   constructor(config: ManagerConfig) {
     this.logger = new Logger(config?.debug || false);
-    if (config?.factoryAddress) {
-      validateAddress(config.factoryAddress, 'Factory address');
-      const { signer, factoryAddress, chainConfig } = config;
+    if (config?.signer && config?.chainConfig) {
+      const { signer, chainConfig } = config;
       this.signer = signer;
-      this.factoryAddress = factoryAddress;
-      this.factoryContract = createContract(factoryAddress, MEMBERSHIP_FACTORY_ABI, signer);
       this.networkConfig = chainConfig;
+
+      if (config.factoryAddress) {
+        validateAddress(config.factoryAddress, 'Factory address');
+        this.factoryAddress = config.factoryAddress;
+        this.factoryContract = createContract(config.factoryAddress, MEMBERSHIP_FACTORY_ABI, signer);
+      }
 
       this.logger.info('Initializing MembershipManager', {
         hasFactory: !!config.factoryAddress,
@@ -331,12 +335,12 @@ export class MembershipManager {
     const result = await getDDCConfig({ address: walletAddress });
 
     if (result.success) {
-      const { nft_factory_address, network } = result.data;
+      const { membership_factory_address, network } = result.data;
       const config: ManagerConfig = {
         signer,
-        factoryAddress: nft_factory_address,
         debug: debug || false,
         chainConfig: network,
+        factoryAddress: membership_factory_address,
       };
       this.instance = new MembershipManager(config);
       return this.instance;
@@ -345,18 +349,93 @@ export class MembershipManager {
   }
 
   /**
+   * Deploy MembershipFactory contract
+   * Users must deploy the factory contract before deploying Membership contracts
+   *
+   * @returns Deployment result with factory contract address
+   * @throws {SDKError} If deployment fails or user rejects transaction
+   */
+  async deployMembershipFactory(): Promise<DeploymentResult> {
+    if (!this.signer) {
+      throw new SDKError('Signer is required for factory deployment', 'MISSING_SIGNER');
+    }
+
+    // this.logger.info('Deploying MembershipFactory contract...');
+    await this.ensureNetwork();
+
+    try {
+      // Create contract factory using bytecode from ABI
+      const bytecode = MembershipFactoryJson.bytecode.object;
+
+      if (!bytecode) {
+        throw new SDKError(
+          'Factory bytecode not found in ABI',
+          'MISSING_BYTECODE'
+        );
+      }
+
+      const factory = new ContractFactory(MEMBERSHIP_FACTORY_ABI, bytecode, this.signer);
+
+      // Deploy the contract
+      // this.logger.info('Sending factory deployment transaction...');
+      const contract = await factory.deploy();
+      // this.logger.info(`Factory deployment transaction sent: ${contract.deploymentTransaction()?.hash}`);
+
+      // Wait for deployment to complete
+      await contract.waitForDeployment();
+
+      const factoryAddress = await contract.getAddress();
+      // this.logger.info(`MembershipFactory deployed successfully at ${factoryAddress}`);
+
+      // Store the factory address and create factory contract instance
+      this.factoryAddress = factoryAddress;
+      this.factoryContract = createContract(factoryAddress, MEMBERSHIP_FACTORY_ABI, this.signer);
+      const deploymentTx = contract.deploymentTransaction();
+      await setMembershipFactoryAddress({ address: await this.signer!.getAddress()!, factoryAddress: factoryAddress });
+
+      return {
+        contractAddress: factoryAddress,
+        transactionHash: deploymentTx?.hash || '',
+        blockNumber: deploymentTx?.blockNumber || 0,
+      };
+    } catch (error: any) {
+      this.logger.error('Factory deployment failed:', error);
+
+      if (error.code === 'INSUFFICIENT_FUNDS') {
+        throw new SDKError('Insufficient funds to pay for gas fees.', 'INSUFFICIENT_FUNDS', {
+          error: error.message,
+        });
+      }
+
+      if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+        throw new SDKError('Transaction was rejected by user.', 'USER_REJECTED', {
+          error: error.message,
+        });
+      }
+
+      throw new SDKError(
+        `Failed to deploy MembershipFactory: ${error.message || error}`,
+        'FACTORY_DEPLOYMENT_ERROR',
+        { error: error.message || error }
+      );
+    }
+  }
+
+  /**
    * Deploy a new Membership contract via factory
    *
    * Implementation strategy:
-   * 1. Use staticCall to get the deployment address BEFORE sending transaction
-   * 2. Execute the actual deployment transaction
-   * 3. Verify deployment via event logs (optional but recommended)
+   * 1. Ensure factory contract is deployed and set (via @ensureFactoryDeployed decorator)
+   * 2. Use staticCall to get the deployment address BEFORE sending transaction
+   * 3. Execute the actual deployment transaction
+   * 4. Verify deployment via event logs (optional but recommended)
    *
    * @param name - Membership contract name
    * @param symbol - Membership contract symbol
    * @returns Deployment result with contract address
+   * @throws {SDKError} If factory contract is not deployed or set
    */
-  @ensureInitialized
+  @ensureFactoryDeployed
   async deployMembership(name: string, symbol: string): Promise<DeploymentResult> {
     if (!name || !name.trim()) {
       throw new SDKError('Contract name cannot be empty', 'INVALID_PARAMETER', { name });
@@ -428,7 +507,7 @@ export class MembershipManager {
 
       // Store deployed contract address
       this.deployedContracts = addAddress(this.deployedContracts, deployedAddress);
-      await setMembershipAddress({ address: deployedAddress });
+      await setMembershipAddress({ address: deployedAddress, contractAddress: deployedAddress, factoryAddress: this.factoryAddress! });
       this.membershipAddress = deployedAddress;
       // this.logger.info(`✓ Membership contract deployed successfully at ${deployedAddress}`);
       return {
@@ -484,7 +563,7 @@ export class MembershipManager {
    * @param newOwner - New owner address
    * @returns Transaction hash
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async transferOwnership(newOwner: string): Promise<string> {
     // this.logger.info(`Transferring ownership to ${newOwner}`);
     await this.ensureNetwork();
@@ -554,7 +633,7 @@ export class MembershipManager {
    * @param contractAddress - Membership contract address
    * @returns Snapshot ID
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async createSnapshot(): Promise<bigint> {
     // this.logger.info('Creating snapshot of current members...');
     await this.ensureNetwork();
@@ -625,7 +704,7 @@ export class MembershipManager {
    * @param addressHash - Member address hash (bytes32)
    * @returns Mint result with token information and transaction details
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async mintToken(tokenId: bigint, addressHash: string): Promise<MintResult> {
     // this.logger.info(`Minting membership token #${tokenId} to ${addressHash}`);
     await this.ensureNetwork();
@@ -708,7 +787,7 @@ export class MembershipManager {
    * @param addressHash - Member address hash (bytes32) for verification
    * @returns Destroy result with token information and transaction details
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async destroyToken(tokenId: bigint, addressHash: string): Promise<DestroyResult> {
     // this.logger.info(`Destroying membership token #${tokenId} from ${addressHash}`);
     await this.ensureNetwork();
@@ -783,7 +862,7 @@ export class MembershipManager {
    * @param baseURI - New base URI
    * @returns Transaction hash
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async setBaseURI(baseURI: string): Promise<void> {
     // this.logger.info(`Setting base URI for contract ${contractAddress}`);
     await this.ensureNetwork();
@@ -840,7 +919,7 @@ export class MembershipManager {
    * Get all deployed contract addresses
    * @returns Map of contract keys to addresses
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   getAllDeployedAddresses(): Array<string> {
     return this.deployedContracts;
   }
@@ -849,7 +928,7 @@ export class MembershipManager {
    * Get contract address
    * @returns Contract address
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   getMembershipAddress(): string {
     return this.membershipAddress!;
   }
@@ -859,7 +938,7 @@ export class MembershipManager {
    * @param contractAddress - Optional membership contract address. If not provided, uses the stored address.
    * @returns Contract instance
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   getMembershipContract(contractAddress?: string): Contract {
     const address = contractAddress || this.getMembershipAddress();
     return createContract(address, MEMBERSHIP_ABI, this.signer!);
@@ -871,7 +950,7 @@ export class MembershipManager {
    * @returns Contract name
    * @throws {SDKError} If contract doesn't exist or address is invalid
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async getName(): Promise<string> {
     const contractAddress = this.getMembershipAddress();
 
@@ -894,7 +973,7 @@ export class MembershipManager {
    * @returns Contract symbol
    * @throws {SDKError} If contract doesn't exist or address is invalid
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async getSymbol(): Promise<string> {
     const contractAddress = this.membershipAddress;
     try {
@@ -916,7 +995,7 @@ export class MembershipManager {
    * @returns Total supply (0 if no tokens minted yet)
    * @throws {SDKError} If contract doesn't exist or address is invalid
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async getTotalSupply(): Promise<bigint> {
     try {
       const supply = await this.getMembershipContract().totalSupply();
@@ -938,7 +1017,7 @@ export class MembershipManager {
    * @returns Owner address hash (bytes32)
    * @throws {SDKError} If token doesn't exist or contract not found
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async getOwnerOf(tokenId: number): Promise<string> {
     if (tokenId === undefined || tokenId === null) {
       throw new SDKError('Token ID is required', 'INVALID_PARAMETER', { tokenId });
@@ -965,7 +1044,7 @@ export class MembershipManager {
    * @returns Token URI
    * @throws {SDKError} If token doesn't exist or URI not set
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async getTokenURI(tokenId: number): Promise<string> {
     if (tokenId === undefined || tokenId === null) {
       throw new SDKError('Token ID is required', 'INVALID_PARAMETER', { tokenId });
@@ -991,7 +1070,7 @@ export class MembershipManager {
    * @returns Owner address
    * @throws {SDKError} If contract doesn't exist
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async getOwner(): Promise<string> {
     return this.getMembershipAddress();
   }
@@ -1003,7 +1082,7 @@ export class MembershipManager {
    * @returns Array of member address hashes (empty array if snapshot doesn't exist)
    * @throws {SDKError} If contract doesn't exist or parameters invalid
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async getMemberSnapshot(snapshotId: bigint): Promise<string[]> {
     if (snapshotId === undefined || snapshotId === null) {
       throw new SDKError('Snapshot ID is required', 'INVALID_PARAMETER', { snapshotId });
@@ -1041,7 +1120,7 @@ export class MembershipManager {
    * @returns Latest snapshot ID (0 if no snapshots created yet)
    * @throws {SDKError} If contract doesn't exist
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async getLatestSnapshotId(): Promise<bigint> {
     const contractAddress = this.getMembershipAddress();
 
@@ -1080,7 +1159,7 @@ export class MembershipManager {
    * @returns True if member is in snapshot, false otherwise
    * @throws {SDKError} If parameters invalid
    */
-  @ensureInitialized
+  @ensureMembershipDeployed
   async isMemberInSnapshot(snapshotId: bigint, addressHash: string): Promise<boolean> {
     if (snapshotId === undefined || snapshotId === null) {
       throw new SDKError('Snapshot ID is required', 'INVALID_PARAMETER', { snapshotId });

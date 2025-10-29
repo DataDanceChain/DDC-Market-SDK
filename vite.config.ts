@@ -7,28 +7,38 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
+    json: {
+      // JSON files can be imported as named exports
+      namedExports: true,
+      // JSON files can be imported as default export
+      stringify: false,
+    },
     plugins: [
       dts({
-        insertTypesEntry: true,
+        insertTypesEntry: false,
         rollupTypes: true,
+        outDir: 'dist/esm',
+        copyDtsFiles: false,
       }),
     ],
     build: {
       lib: {
         entry: './src/index.ts',
         name: 'DDCMarketSDK',
-        formats: ['es', 'cjs'],
-        fileName: (format) => `index.${format === 'es' ? 'mjs' : 'cjs'}`,
       },
       rollupOptions: {
         // 确保外部化依赖，不要打包进库
         external: ['axios', 'ethers'],
-        output: {
-          globals: {
-            axios: 'axios',
-            ethers: 'ethers',
+        output: [
+          {
+            format: 'es',
+            entryFileNames: 'esm/index.js',
           },
-        },
+          {
+            format: 'cjs',
+            entryFileNames: 'cjs/index.js',
+          },
+        ],
       },
       sourcemap: true,
       outDir: 'dist',
