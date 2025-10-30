@@ -1,4 +1,4 @@
-import type { ContractRunner, Eip1193Provider as EthersEip1193Provider, Signer } from 'ethers';
+import type { Eip1193Provider as EthersEip1193Provider, Provider, Signer } from 'ethers';
 import type { AxiosError } from 'axios';
 
 /**
@@ -6,9 +6,9 @@ import type { AxiosError } from 'axios';
  */
 export interface ManagerParams {
   /**
-   * Signer for contract operations
+   * Provider for contract operations
    */
-  signer: Signer;
+  provider: Provider;
   /**
    *  current user wallet address
    */
@@ -24,9 +24,9 @@ export interface ManagerParams {
  */
 export interface ManagerConfig {
   /**
-   * Signer for contract operations
+   * Provider for contract operations
    */
-  signer: Signer;
+  provider: Provider;
   /**
    * DDCNFT factory contract address
    */
@@ -38,7 +38,7 @@ export interface ManagerConfig {
   /**
    * Chain configuration
    */
-  chainConfig: DDCChainConfig;
+  network: DDCChainConfig;
 }
 
 /**
@@ -48,66 +48,29 @@ export interface DDCChainConfig {
   /**
    * Chain ID (e.g., 1 for Ethereum Mainnet, 137 for Polygon)
    */
-  chainId: number;
-
+  chain_id: number;
   /**
    * Network name (e.g., "Ethereum Mainnet", "Polygon")
    */
-  chainName?: string;
+  chain_name?: string;
 
   /**
    * RPC URL for the network
    */
   rpc_url?: string;
-
-  /**
-   * Block explorer URL
-   */
-  blockExplorer?: string;
-
+  
   /**
    * Native currency symbol
-   */
-  token_symbol: string;
-  /**
-   * DDC explorer URL
-   */
-  explore_url: string;
-}
-
-/**
- * Network configuration for chain switching
- * Compatible with EIP-3085 (wallet_addEthereumChain) and EIP-3326 (wallet_switchEthereumChain)
+  */
+ token_symbol: string;
+ /**
+  * DDC explorer URL
  */
-export interface NetworkConfig {
-  /**
-   * Chain ID (e.g., 1 for Ethereum Mainnet, 137 for Polygon)
-   */
-  chainId: number;
-
-  /**
-   * Network name (e.g., "Ethereum Mainnet", "Polygon")
-   */
-  name?: string;
-
-  /**
-   * RPC URL for the network (required for adding new networks)
-   */
-  rpcUrl?: string;
-
+  explore_url?: string;
   /**
    * Block explorer URL
    */
   blockExplorer?: string;
-
-  /**
-   * Native currency configuration
-   */
-  currency?: {
-    name: string;
-    symbol: string;
-    decimals: number;
-  };
 }
 
 /**

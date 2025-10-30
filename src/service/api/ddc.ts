@@ -18,61 +18,55 @@ export async function getDDCConfig(
 },
   config?: ApiRequestConfig
 ): Promise<ApiResponse<{
+  code: number;
+  data: {
   
-  /** nft 工厂合约的地址  用于部署商户NFT 合约
- */
+  /** nft 工厂合约的地址  用于部署商户NFT 合约 */
   nft_factory_address: string;
   
   /** membership 工厂合约的地址 */
   membership_factory_address: string;
   metadata_url: string;
   
-  /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在
- */
-  nft_address?: Array<string>;
+  /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在 */
+  nft_address: string;
   
-  /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在
- */
-  membership_address?: Array<string>;
-  
-  /** ddc 的 rpc 网络配置信息, 同 metamask 钱包上的配置
-
- */
+  /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在 */
+  membership_address: string;
   network: {
-  chainId: number;
-  chainName: string;
+  chain_id: number;
+  chain_name: string;
   rpc_url: string;
   token_symbol: string;
   explore_url: string;
 };
+};
+  message: string;
 }>> {
   return requestPost<{
+  code: number;
+  data: {
   
-  /** nft 工厂合约的地址  用于部署商户NFT 合约
- */
+  /** nft 工厂合约的地址  用于部署商户NFT 合约 */
   nft_factory_address: string;
   
   /** membership 工厂合约的地址 */
   membership_factory_address: string;
   metadata_url: string;
   
-  /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在
- */
-  nft_address?: Array<string>;
+  /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在 */
+  nft_address: string;
   
-  /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在
- */
-  membership_address?: Array<string>;
-  
-  /** ddc 的 rpc 网络配置信息, 同 metamask 钱包上的配置
-
- */
+  /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在 */
+  membership_address: string;
   network: {
-  chainId: number;
-  chainName: string;
+  chain_id: number;
+  chain_name: string;
   rpc_url: string;
   token_symbol: string;
   explore_url: string;
 };
+};
+  message: string;
 }>(`/ddc/config`, data, config);
 }

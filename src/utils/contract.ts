@@ -30,7 +30,7 @@ export function ensureFactoryDeployed(
 
   descriptor.value = function (this: any, ...args: any[]) {
     // First check basic initialization
-    if (!this.signer) {
+    if (!this.provider) {
       throw new SDKError(
         'Manager not initialized. Please call init() first.',
         'NOT_INITIALIZED',
@@ -59,7 +59,7 @@ export function ensureFactoryDeployed(
 
 /**
  * Decorator to ensure DDCNFTManager has a deployed DDCNFT contract to interact with
- * Checks if signer and ddcnftAddress exist
+ * Checks if provider and ddcnftAddress exist
  * Use this decorator for methods that operate on a specific DDCNFT instance (mint, burn, transfer, etc.)
  */
 export function ensureDDCNFTDeployed(
@@ -71,7 +71,7 @@ export function ensureDDCNFTDeployed(
 
   descriptor.value = function (this: any, ...args: any[]) {
     // Check basic initialization
-    if (!this.signer) {
+    if (!this.provider) {
       throw new SDKError(
         'DDCNFTManager not initialized. Please call DDCNFTManager.init() first.',
         'NOT_INITIALIZED',
@@ -96,7 +96,7 @@ export function ensureDDCNFTDeployed(
 
 /**
  * Decorator to ensure MembershipManager has a deployed Membership contract to interact with
- * Checks if signer and membershipAddress exist
+ * Checks if provider and membershipAddress exist
  * Use this decorator for methods that operate on a specific Membership instance (mint, burn, transfer, etc.)
  */
 export function ensureMembershipDeployed(
@@ -108,7 +108,7 @@ export function ensureMembershipDeployed(
 
   descriptor.value = function (this: any, ...args: any[]) {
     // Check basic initialization
-    if (!this.signer) {
+    if (!this.provider) {
       throw new SDKError(
         'MembershipManager not initialized. Please call MembershipManager.init() first.',
         'NOT_INITIALIZED',

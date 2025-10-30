@@ -1,9 +1,9 @@
-import { Contract, ContractTransactionResponse, Signer, ContractFactory } from 'ethers';
+import { Contract, ContractTransactionResponse, ContractFactory, Provider, BrowserProvider, getAddress, Interface } from 'ethers';
 import type { DeploymentResult, DDCChainConfig, ManagerParams, ManagerConfig } from '../types';
 import { SDKError } from '../types';
-import { createContract, validateAddress, ensureCorrectNetwork, Logger } from '../utils';
+import { createContract, validateAddress, ensureCorrectNetwork, Logger, getSigner } from '../utils';
 import { DDCNFT_ABI, DDCNFT_FACTORY_ABI } from '../abi';
-import { getDDCConfig, setNftAddress, setNftFactoryAddress } from '../service/api';
+import { getDDCConfig, setContractAddress, setFactoryAddress } from '../service/api';
 import { ensureFactoryDeployed, ensureDDCNFTDeployed, addAddress } from '../utils/contract';
 import DDCNFTFactoryJson from '../abi/DDCNFTFactory.json';
 
@@ -16,32 +16,28 @@ export class DDCNFTManager {
   private static readonly BYTES32_ZERO =
     '0x0000000000000000000000000000000000000000000000000000000000000000';
 
-  signer?: Signer;
-  private factoryAddress?: string; 
+  private provider?: Provider;
   private factoryContract?: Contract; // factory instance
-  private networkConfig?: DDCChainConfig;
   private logger: Logger;
-  private ddcnftAddress?: string; // current deployed DDCNFT contract address
   private static instance: DDCNFTManager | null = null;
+  
+  public factoryAddress?: string; 
+  public networkConfig?: DDCChainConfig;
+  public ddcnftAddress?: string; // current deployed DDCNFT contract address
 
   // All deployed nft contract addresses
   private deployedContracts: Array<string> = [];
 
   constructor(config: ManagerConfig) {
     this.logger = new Logger(config?.debug || false);
-    if (config?.signer && config?.chainConfig) {
-      const { signer, chainConfig } = config;
-      this.signer = signer;
-      this.networkConfig = chainConfig;
-      
-      if (config.factoryAddress) {
-        this.factoryAddress = config.factoryAddress;
-        this.factoryContract = createContract(config.factoryAddress, DDCNFT_FACTORY_ABI, signer);
-      }
+    if (config?.provider && config?.network) {
+      const { provider, network } = config;
+      this.provider = provider;
+      this.networkConfig = network;
 
       this.logger.info('Initializing DDCNFTManager', {
-        network: chainConfig.chainName || 'not specified',
-        chainId: chainConfig?.chainId,
+        network: network.chain_name || 'not specified',
+        chain_id: network.chain_id,
       });
     }
   }
@@ -53,9 +49,13 @@ export class DDCNFTManager {
    */
   private parseDeploymentEvent(receipt: any, expectedName: string, expectedSymbol: string): string {
     try {
+      // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
+      // Using contract.interface directly can cause "Receiver must be an instance of class _Interface" error
+      const factoryInterface = new Interface(DDCNFT_FACTORY_ABI);
+
       for (const log of receipt.logs) {
         try {
-          const parsed = this.factoryContract!.interface.parseLog({
+          const parsed = factoryInterface.parseLog({
             topics: [...log.topics],
             data: log.data,
           });
@@ -87,16 +87,17 @@ export class DDCNFTManager {
    * @returns Parsed transfer information
    * @throws SDKError if event not found or parameters don't match
    */
-  private parseTransferEvent(
+  private async parseTransferEvent(
     receipt: any,
     expectedTokenId: bigint
-  ): { fromHash: string; toHash: string; tokenId: bigint } {
+  ): Promise<{ fromHash: string; toHash: string; tokenId: bigint }> {
     try {
-      const contract = this.getDDCNFTContract();
+      // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
+      const nftInterface = new Interface(DDCNFT_ABI);
 
       for (const log of receipt.logs) {
         try {
-          const parsed = contract.interface.parseLog({
+          const parsed = nftInterface.parseLog({
             topics: [...log.topics],
             data: log.data,
           });
@@ -163,17 +164,18 @@ export class DDCNFTManager {
    * @returns Parsed transfer information
    * @throws SDKError if event not found or parameters don't match
    */
-  private parseTransferEventForTransfer(
+  private async parseTransferEventForTransfer(
     receipt: any,
     expectedTokenId: bigint,
     expectedToHash: string
-  ): { fromHash: string; toHash: string; tokenId: bigint } {
+  ): Promise<{ fromHash: string; toHash: string; tokenId: bigint }> {
     try {
-      const contract = this.getDDCNFTContract();
+      // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
+      const nftInterface = new Interface(DDCNFT_ABI);
 
       for (const log of receipt.logs) {
         try {
-          const parsed = contract.interface.parseLog({
+          const parsed = nftInterface.parseLog({
             topics: [...log.topics],
             data: log.data,
           });
@@ -239,16 +241,17 @@ export class DDCNFTManager {
    * @returns Parsed burn information with keyHash, zero toHash, and tokenId
    * @throws SDKError if event not found or parameters don't match
    */
-  private parseTransferEventForDestroy(
+  private async parseTransferEventForDestroy(
     receipt: any,
     expectedTokenId: bigint
-  ): { fromHash: string; toHash: string; tokenId: bigint } {
+  ): Promise<{ fromHash: string; toHash: string; tokenId: bigint }> {
     try {
-      const contract = this.getDDCNFTContract();
+      // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
+      const nftInterface = new Interface(DDCNFT_ABI);
 
       for (const log of receipt.logs) {
         try {
-          const parsed = contract.interface.parseLog({
+          const parsed = nftInterface.parseLog({
             topics: [...log.topics],
             data: log.data,
           });
@@ -315,16 +318,17 @@ export class DDCNFTManager {
    * @returns Parsed destroy information with tokenId and keyHash (named ownerHash in event)
    * @throws SDKError if event not found or parameters don't match
    */
-  private parseTokenDestroyedEvent(
+  private async parseTokenDestroyedEvent(
     receipt: any,
     expectedTokenId: bigint
-  ): { tokenId: bigint; ownerHash: string } {
+  ): Promise<{ tokenId: bigint; ownerHash: string }> {
     try {
-      const contract = this.getDDCNFTContract();
+      // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
+      const nftInterface = new Interface(DDCNFT_ABI);
 
       for (const log of receipt.logs) {
         try {
-          const parsed = contract.interface.parseLog({
+          const parsed = nftInterface.parseLog({
             topics: [...log.topics],
             data: log.data,
           });
@@ -382,7 +386,7 @@ export class DDCNFTManager {
     }
 
     try {
-      await ensureCorrectNetwork(this.signer!, this.networkConfig, this.logger.debug);
+      await ensureCorrectNetwork(this.provider as BrowserProvider, this.networkConfig, this.logger.debug);
     } catch (error) {
       this.logger.error('Network validation failed:', error);
       throw error;
@@ -401,19 +405,33 @@ export class DDCNFTManager {
       });
     }
 
-    const { walletAddress, signer, debug } = manageConfig;
+    const { walletAddress, provider, debug } = manageConfig;
     // query ddc config from api
     const result = await getDDCConfig({ address: walletAddress });
 
     if (result.success) {
-      const { nft_factory_address, network } = result.data;
+      const { nft_factory_address, network } = result.data.data;
       const config: ManagerConfig = {
-        signer,
+        provider,
         debug: debug || false,
-        chainConfig: network,
+        network: network,
         factoryAddress: nft_factory_address,
       };
+      
+      // Create instance
       this.instance = new DDCNFTManager(config);
+      
+      // Validate network immediately after initialization
+      // This ensures the wallet is connected to the correct network before any operations
+      await this.instance.ensureNetwork();
+
+            
+      if (config.factoryAddress) {
+        this.instance.factoryAddress = config.factoryAddress;
+        const signer = await getSigner(provider as BrowserProvider);
+        this.instance.factoryContract = createContract(config.factoryAddress, DDCNFT_FACTORY_ABI, signer);
+      }
+      
       return this.instance;
     }
     throw new SDKError('Failed to get DDC config', 'DDC_CONFIG_ERROR', { result });
@@ -427,27 +445,20 @@ export class DDCNFTManager {
    * @throws {SDKError} If deployment fails or user rejects transaction
    */
   async deployDDCFactory(): Promise<DeploymentResult> {
-    if (!this.signer) {
-      throw new SDKError('Signer is required for factory deployment', 'MISSING_SIGNER');
+    if (!this.provider) {
+      throw new SDKError('provider is required for factory deployment', 'MISSING_SIGNER');
     }
 
-    this.logger.info('Deploying DDCNFTFactory contract...');
     await this.ensureNetwork();
 
     try {
       // Create contract factory using bytecode from ABI
       const bytecode = DDCNFTFactoryJson.bytecode.object;
-
-      if (!bytecode) {
-        throw new SDKError(
-          'Factory bytecode not found in ABI',
-          'MISSING_BYTECODE'
-        );
-      }
-
-      const factory = new ContractFactory(DDCNFT_FACTORY_ABI, bytecode, this.signer);
+      const signer = await getSigner(this.provider as BrowserProvider);
+      const factory = new ContractFactory(DDCNFT_FACTORY_ABI, bytecode, signer);
 
       // Deploy the contract
+      this.logger.info('Deploying DDCNFTFactory contract...');
       // this.logger.info('Sending factory deployment transaction...');
       const contract = await factory.deploy();
       // this.logger.info(`Factory deployment transaction sent: ${contract.deploymentTransaction()?.hash}`);
@@ -460,9 +471,9 @@ export class DDCNFTManager {
 
       // Store the factory address and create factory contract instance
       this.factoryAddress = factoryAddress;
-      this.factoryContract = createContract(factoryAddress, DDCNFT_FACTORY_ABI, this.signer);
+      this.factoryContract = createContract(factoryAddress, DDCNFT_FACTORY_ABI, signer);
       const deploymentTx = contract.deploymentTransaction();
-      await setNftFactoryAddress({ address: await this.signer!.getAddress()!, factoryAddress: factoryAddress });
+      await setFactoryAddress({ address: await signer!.getAddress()!, factoryAddress: factoryAddress, type: 'nft' });
 
 
       return {
@@ -498,14 +509,19 @@ export class DDCNFTManager {
    *
    * Implementation strategy:
    * 1. Ensure factory contract is deployed and set (via @ensureFactoryDeployed decorator)
-   * 2. Use staticCall to get the deployment address BEFORE sending transaction
-   * 3. Execute the actual deployment transaction
-   * 4. Verify deployment via event logs (optional but recommended)
+   * 2. Execute the deployment transaction via factory contract
+   * 3. Parse DDCNFTDeployed event from transaction receipt to get actual deployed address
+   * 4. Normalize address to checksum format for consistency
+   *
+   * Note: We prioritize event-based address retrieval over staticCall because:
+   * - Event address is emitted by the actual contract deployment, guaranteed to be correct
+   * - staticCall can be unreliable with CREATE opcode (nonce changes between simulation and execution)
+   * - This approach is more robust for production use
    *
    * @param name - NFT collection name
    * @param symbol - NFT collection symbol
    * @returns Deployment result with contract address
-   * @throws {SDKError} If factory contract is not deployed or set
+   * @throws {SDKError} If factory contract is not deployed or event parsing fails
    */
   @ensureFactoryDeployed
   async deployDDCNFT(name: string, symbol: string): Promise<DeploymentResult> {
@@ -521,28 +537,8 @@ export class DDCNFTManager {
     await this.ensureNetwork();
 
     try {
-      // Step 1: Pre-calculate deployment address using staticCall
-      // staticCall simulates the transaction and returns the function's return value
-      // without actually sending a transaction or changing blockchain state
-      // this.logger.info('Step 1/3: Calculating deployment address via staticCall...');
-
-      let predictedAddress: string;
-      try {
-        predictedAddress = await this.factoryContract!.deployDDCNFT.staticCall(name, symbol);
-        // this.logger.info(`Predicted deployment address: ${predictedAddress}`);
-      } catch (staticError: any) {
-        this.logger.error('staticCall failed:', staticError);
-        throw new SDKError(
-          `Failed to predict deployment address. This might indicate the deployment will fail. Error: ${
-            staticError.message || staticError
-          }`,
-          'STATICCALL_FAILED',
-          { name, symbol, error: staticError.message }
-        );
-      }
-
-      // Step 2: Execute actual deployment transaction
-      // this.logger.info('Step 2/3: Sending deployment transaction to blockchain...');
+      // Execute deployment transaction via factory
+      // this.logger.info('Sending deployment transaction to blockchain...');
       const tx: ContractTransactionResponse = await this.factoryContract!.deployDDCNFT(
         name,
         symbol
@@ -557,31 +553,31 @@ export class DDCNFTManager {
 
       // this.logger.info(`Transaction confirmed in block ${receipt.blockNumber}`);
 
-      // Step 3: Verify deployment via event (for extra validation)
-      // this.logger.info('Step 3/3: Verifying deployment via event logs...');
-      const eventAddress = this.parseDeploymentEvent(receipt, name, symbol);
+      // Parse deployment address from DDCNFTDeployed event (most reliable source)
+      let deployedAddress = this.parseDeploymentEvent(receipt, name, symbol);
 
-      if (eventAddress) {
-        if (eventAddress.toLowerCase() === predictedAddress.toLowerCase()) {
-          // this.logger.info('✓ Event address matches prediction');
-        } else {
-          this.logger.warn(
-            `⚠ Address mismatch! Predicted: ${predictedAddress}, Event: ${eventAddress}`
-          );
-          // Use event address as it's the actual deployed address
-          predictedAddress = eventAddress;
-        }
-      } else {
-        this.logger.warn('Could not find DDCNFTDeployed event, using predicted address');
+      if (!deployedAddress) {
+        throw new SDKError(
+          'Failed to parse DDCNFTDeployed event from transaction receipt.',
+          'EVENT_PARSE_ERROR',
+          { 
+            transactionHash: receipt.hash,
+            blockNumber: receipt.blockNumber,
+            name,
+            symbol
+          }
+        );
       }
 
-      const deployedAddress = predictedAddress;
+      // Normalize address to checksum format for consistency
+      deployedAddress = getAddress(deployedAddress);
+      // this.logger.info(`✓ DDCNFT contract deployed successfully at ${deployedAddress}`);
 
       // Store deployed contract address
       this.deployedContracts = addAddress(this.deployedContracts, deployedAddress);
-      await setNftAddress({ address: deployedAddress, contractAddress: deployedAddress, factoryAddress: this.factoryAddress! });
+      await setContractAddress({ address: deployedAddress, contract: deployedAddress, type: 'nft' });
       this.ddcnftAddress = deployedAddress;
-      // this.logger.info(`✓ DDCNFT contract deployed successfully at ${deployedAddress}`);
+
       return {
         contractAddress: deployedAddress,
         transactionHash: receipt.hash,
@@ -635,7 +631,7 @@ export class DDCNFTManager {
    * @returns Deployment result
    */
   async transferOwnership(newOwner: string): Promise<string> {
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
     try {
       const tx: ContractTransactionResponse = await contract.transferOwnership(newOwner);
       const receipt = await tx.wait();
@@ -657,7 +653,7 @@ export class DDCNFTManager {
    * @returns Transaction hash
    */
   async pause(): Promise<string> {
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
 
     try {
       const tx: ContractTransactionResponse = await contract.pause();
@@ -678,7 +674,7 @@ export class DDCNFTManager {
    * @returns Transaction hash
    */
   async unpause(): Promise<string> {
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
     try {
       const tx: ContractTransactionResponse = await contract.unpause();
       const receipt = await tx.wait();
@@ -714,7 +710,7 @@ export class DDCNFTManager {
    * @param contractAddress - DDCNFT contract address (optional, uses stored address if not provided)
    * @returns Contract instance
    */
-  getDDCNFTContract(contractAddress?: string): Contract {
+  async getDDCNFTContract(contractAddress?: string): Promise<Contract> {
     const address = contractAddress || this.ddcnftAddress;
     if (!address) {
       throw new SDKError(
@@ -723,7 +719,8 @@ export class DDCNFTManager {
       );
     }
     validateAddress(address, 'DDCNFT contract address');
-    return createContract(address, DDCNFT_ABI, this.signer!);
+    const signer = await getSigner(this.provider as BrowserProvider);
+    return createContract(address, DDCNFT_ABI, signer!);
   }
 
   /**
@@ -738,7 +735,7 @@ export class DDCNFTManager {
     // Ensure correct network before transaction
     await this.ensureNetwork();
 
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
 
     try {
       // this.logger.info('Sending setBaseURI transaction...');
@@ -814,7 +811,7 @@ export class DDCNFTManager {
     // Ensure correct network before transaction
     await this.ensureNetwork();
 
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
 
     // Validate tokenId
     if (!tokenId || tokenId === 0n) {
@@ -911,7 +908,7 @@ export class DDCNFTManager {
     // Ensure correct network before transaction
     await this.ensureNetwork();
 
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
 
     // Validate parameters
     if (!tokenId) {
@@ -993,7 +990,7 @@ export class DDCNFTManager {
    */
   @ensureDDCNFTDeployed
   async getTokenURI(tokenId: bigint): Promise<string> {
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
 
     try {
       return await contract.tokenURI(tokenId);
@@ -1020,7 +1017,7 @@ export class DDCNFTManager {
     // Ensure correct network before transaction
     await this.ensureNetwork();
 
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
 
     // Validate toHash is a valid bytes32 value
     if (!toHash || toHash.length !== 66 || !toHash.startsWith('0x')) {
@@ -1095,7 +1092,7 @@ export class DDCNFTManager {
    */
   @ensureDDCNFTDeployed
   async getName(): Promise<string> {
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
     try {
       return await contract.name();
     } catch (error) {
@@ -1110,7 +1107,7 @@ export class DDCNFTManager {
    */
   @ensureDDCNFTDeployed
   async getSymbol(): Promise<string> {
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
     try {
       return await contract.symbol();
     } catch (error) {
@@ -1126,7 +1123,7 @@ export class DDCNFTManager {
    */
   @ensureDDCNFTDeployed
   async getOwnerOf(tokenId: bigint): Promise<string> {
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
     try {
       return await contract.ownerOf(tokenId);
     } catch (error) {
@@ -1144,7 +1141,7 @@ export class DDCNFTManager {
    */
   @ensureDDCNFTDeployed
   async getOwner(): Promise<string> {
-    const contract = this.getDDCNFTContract();
+    const contract = await this.getDDCNFTContract();
     try {
       return await contract.owner();
     } catch (error) {
@@ -1152,4 +1149,19 @@ export class DDCNFTManager {
       throw new SDKError(`Failed to get contract owner: ${error}`, 'GET_OWNER_ERROR', { error });
     }
   }
+
+  getNetworkConfig(): DDCChainConfig {
+    if (!this.networkConfig) {
+      throw new SDKError('Network config not available', 'NETWORK_CONFIG_NOT_AVAILABLE');
+    }
+    return this.networkConfig;
+  }
+
+  getFactoryAddress(): string {
+    if (!this.factoryAddress) {
+      throw new SDKError('Factory contract not available', 'FACTORY_CONTRACT_NOT_AVAILABLE');
+    }
+    return this.factoryAddress;
+  }
 }
+

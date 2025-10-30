@@ -1,4 +1,4 @@
-import { Contract, ContractTransactionResponse, Signer, ContractFactory } from 'ethers';
+import { Contract, ContractTransactionResponse, ContractFactory, Provider, BrowserProvider, Interface } from 'ethers';
 import type {
   DeploymentResult,
   MintResult,
@@ -8,9 +8,9 @@ import type {
   ManagerConfig,
 } from '../types';
 import { SDKError } from '../types';
-import { createContract, validateAddress, ensureCorrectNetwork, Logger } from '../utils';
+import { createContract, validateAddress, ensureCorrectNetwork, Logger, getSigner } from '../utils';
 import { MEMBERSHIP_ABI, MEMBERSHIP_FACTORY_ABI } from '../abi';
-import { getDDCConfig, setMembershipAddress, setMembershipFactoryAddress } from '../service/api';
+import { getDDCConfig, setContractAddress, setFactoryAddress } from '../service/api';
 import { ensureFactoryDeployed, ensureMembershipDeployed, addAddress } from '../utils/contract';
 import MembershipFactoryJson from '../abi/MembershipFactory.json';
 
@@ -23,7 +23,7 @@ export class MembershipManager {
   private static readonly BYTES32_ZERO =
     '0x0000000000000000000000000000000000000000000000000000000000000000';
 
-  signer?: Signer;
+  private provider?: Provider;
   private factoryContract?: Contract;
   private factoryAddress?: string;
   private networkConfig?: DDCChainConfig;
@@ -36,21 +36,15 @@ export class MembershipManager {
 
   constructor(config: ManagerConfig) {
     this.logger = new Logger(config?.debug || false);
-    if (config?.signer && config?.chainConfig) {
-      const { signer, chainConfig } = config;
-      this.signer = signer;
-      this.networkConfig = chainConfig;
-
-      if (config.factoryAddress) {
-        validateAddress(config.factoryAddress, 'Factory address');
-        this.factoryAddress = config.factoryAddress;
-        this.factoryContract = createContract(config.factoryAddress, MEMBERSHIP_FACTORY_ABI, signer);
-      }
+    if (config?.provider && config?.network) {
+      const { provider, network } = config;
+      this.provider = provider;
+      this.networkConfig = network;
 
       this.logger.info('Initializing MembershipManager', {
         hasFactory: !!config.factoryAddress,
-        network: chainConfig.chainName || 'not specified',
-        chainId: chainConfig?.chainId,
+        network: network.chain_name || 'not specified',
+        chain_id: network.chain_id,
       });
     }
   }
@@ -62,9 +56,12 @@ export class MembershipManager {
    */
   private parseDeploymentEvent(receipt: any, expectedName: string, expectedSymbol: string): string {
     try {
+      // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
+      const factoryInterface = new Interface(MEMBERSHIP_FACTORY_ABI);
+
       for (const log of receipt.logs) {
         try {
-          const parsed = this.factoryContract!.interface.parseLog({
+          const parsed = factoryInterface.parseLog({
             topics: [...log.topics],
             data: log.data,
           });
@@ -95,14 +92,14 @@ export class MembershipManager {
    * @returns Snapshot ID from event
    * @throws SDKError if event not found
    */
-  private parseSnapshotCreatedEvent(receipt: any): bigint {
+  private async parseSnapshotCreatedEvent(receipt: any): Promise<bigint> {
     try {
-      // Get the contract to parse logs
-      const contract = this.getMembershipContract();
+      // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
+      const membershipInterface = new Interface(MEMBERSHIP_ABI);
 
       for (const log of receipt.logs) {
         try {
-          const parsed = contract.interface.parseLog({
+          const parsed = membershipInterface.parseLog({
             topics: [...log.topics],
             data: log.data,
           });
@@ -137,17 +134,18 @@ export class MembershipManager {
    * @returns Parsed transfer information
    * @throws SDKError if event not found or parameters don't match
    */
-  private parseTransferEvent(
+  private async parseTransferEvent(
     receipt: any,
     expectedTokenId: bigint,
     expectedTo: string
-  ): { from: string; to: string; tokenId: bigint } {
+  ): Promise<{ from: string; to: string; tokenId: bigint }> {
     try {
-      const contract = this.getMembershipContract();
+      // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
+      const membershipInterface = new Interface(MEMBERSHIP_ABI);
 
       for (const log of receipt.logs) {
         try {
-          const parsed = contract.interface.parseLog({
+          const parsed = membershipInterface.parseLog({
             topics: [...log.topics],
             data: log.data,
           });
@@ -223,17 +221,18 @@ export class MembershipManager {
    * @returns Parsed burn information
    * @throws SDKError if event not found or parameters don't match
    */
-  private parseBurnEvent(
+  private async parseBurnEvent(
     receipt: any,
     expectedTokenId: bigint,
     expectedFrom: string
-  ): { from: string; to: string; tokenId: bigint } {
+  ): Promise<{ from: string; to: string; tokenId: bigint }> {
     try {
-      const contract = this.getMembershipContract();
+      // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
+      const membershipInterface = new Interface(MEMBERSHIP_ABI);
 
       for (const log of receipt.logs) {
         try {
-          const parsed = contract.interface.parseLog({
+          const parsed = membershipInterface.parseLog({
             topics: [...log.topics],
             data: log.data,
           });
@@ -311,7 +310,7 @@ export class MembershipManager {
     }
 
     try {
-      await ensureCorrectNetwork(this.signer!, this.networkConfig, this.logger.debug);
+      await ensureCorrectNetwork(this.provider as BrowserProvider, this.networkConfig, this.logger.debug);
     } catch (error) {
       this.logger.error('Network validation failed:', error);
       throw error;
@@ -330,19 +329,29 @@ export class MembershipManager {
       });
     }
 
-    const { walletAddress, signer, debug } = manageConfig;
+    const { walletAddress, provider, debug } = manageConfig;
     // query ddc config from api
     const result = await getDDCConfig({ address: walletAddress });
 
     if (result.success) {
-      const { membership_factory_address, network } = result.data;
+      const { membership_factory_address, network } = result.data.data;
       const config: ManagerConfig = {
-        signer,
+        provider,
         debug: debug || false,
-        chainConfig: network,
+        network: network,
         factoryAddress: membership_factory_address,
       };
       this.instance = new MembershipManager(config);
+      await this.instance.ensureNetwork();
+
+
+      if (config.factoryAddress) {
+        validateAddress(config.factoryAddress, 'Factory address');
+        this.instance.factoryAddress =  config.factoryAddress;
+        const signer = await getSigner(this.instance.provider as BrowserProvider);
+        this.instance.factoryContract = createContract(config.factoryAddress, MEMBERSHIP_FACTORY_ABI, signer);
+      }
+
       return this.instance;
     }
     throw new SDKError('Failed to get DDC config', 'DDC_CONFIG_ERROR', { result });
@@ -356,8 +365,8 @@ export class MembershipManager {
    * @throws {SDKError} If deployment fails or user rejects transaction
    */
   async deployMembershipFactory(): Promise<DeploymentResult> {
-    if (!this.signer) {
-      throw new SDKError('Signer is required for factory deployment', 'MISSING_SIGNER');
+    if (!this.provider) {
+      throw new SDKError('provider is required for factory deployment', 'MISSING_SIGNER');
     }
 
     // this.logger.info('Deploying MembershipFactory contract...');
@@ -374,7 +383,8 @@ export class MembershipManager {
         );
       }
 
-      const factory = new ContractFactory(MEMBERSHIP_FACTORY_ABI, bytecode, this.signer);
+      const signer = await getSigner(this.provider as BrowserProvider);
+      const factory = new ContractFactory(MEMBERSHIP_FACTORY_ABI, bytecode, signer);
 
       // Deploy the contract
       // this.logger.info('Sending factory deployment transaction...');
@@ -389,9 +399,9 @@ export class MembershipManager {
 
       // Store the factory address and create factory contract instance
       this.factoryAddress = factoryAddress;
-      this.factoryContract = createContract(factoryAddress, MEMBERSHIP_FACTORY_ABI, this.signer);
+      this.factoryContract = createContract(factoryAddress, MEMBERSHIP_FACTORY_ABI, signer);
       const deploymentTx = contract.deploymentTransaction();
-      await setMembershipFactoryAddress({ address: await this.signer!.getAddress()!, factoryAddress: factoryAddress });
+      await setFactoryAddress({ address: await signer!.getAddress()!, factoryAddress: factoryAddress, type: 'membership' });
 
       return {
         contractAddress: factoryAddress,
@@ -507,7 +517,7 @@ export class MembershipManager {
 
       // Store deployed contract address
       this.deployedContracts = addAddress(this.deployedContracts, deployedAddress);
-      await setMembershipAddress({ address: deployedAddress, contractAddress: deployedAddress, factoryAddress: this.factoryAddress! });
+      await setContractAddress({ address: deployedAddress, contract: deployedAddress, type: 'membership' });
       this.membershipAddress = deployedAddress;
       // this.logger.info(`✓ Membership contract deployed successfully at ${deployedAddress}`);
       return {
@@ -574,7 +584,7 @@ export class MembershipManager {
 
     try {
       // this.logger.info('Sending transferOwnership transaction...');
-      const tx: ContractTransactionResponse = await contract.transferOwnership(newOwner);
+      const tx: ContractTransactionResponse = await (await contract).transferOwnership(newOwner);
 
       // this.logger.info(
       //   `Transfer ownership transaction sent: ${tx.hash}. Waiting for confirmation...`
@@ -643,7 +653,7 @@ export class MembershipManager {
     try {
       // Execute createSnapshot transaction
       // this.logger.info('Sending createSnapshot transaction...');
-      const tx: ContractTransactionResponse = await contract.createSnapshot();
+      const tx: ContractTransactionResponse = await (await contract).createSnapshot();
 
       // this.logger.info(`Snapshot transaction sent: ${tx.hash}. Waiting for confirmation...`);
       const receipt = await tx.wait();
@@ -653,7 +663,7 @@ export class MembershipManager {
 
       // this.logger.info(`Transaction confirmed in block ${receipt.blockNumber}`);
       // Parse snapshot ID from SnapshotCreated event
-      const snapshotId = this.parseSnapshotCreatedEvent(receipt);
+      const snapshotId = await this.parseSnapshotCreatedEvent(receipt);
       // this.logger.info(`✓ Snapshot created successfully. Snapshot ID: ${snapshotId}`);
       return snapshotId;
     } catch (error: any) {
@@ -709,7 +719,7 @@ export class MembershipManager {
     // this.logger.info(`Minting membership token #${tokenId} to ${addressHash}`);
     await this.ensureNetwork();
 
-    const contract = this.getMembershipContract();
+    const contract =await this.getMembershipContract();
 
     try {
       // Step 1: Execute mint transaction
@@ -725,7 +735,7 @@ export class MembershipManager {
       // this.logger.info(`Transaction confirmed in block ${receipt.blockNumber}`);
       // Step 2: Verify minting via Transfer event
       // this.logger.info('Step 2/2: Verifying mint via Transfer event...');
-      const transferEvent = this.parseTransferEvent(receipt, tokenId, addressHash);
+      const transferEvent = await this.parseTransferEvent(receipt, tokenId, addressHash);
 
       // this.logger.info(
       //   `✓ Membership token #${transferEvent.tokenId} minted successfully to ${transferEvent.to}`
@@ -798,7 +808,7 @@ export class MembershipManager {
     try {
       // Step 1: Execute destroy transaction
       // this.logger.info('Step 1/2: Sending destroy transaction...');
-      const tx: ContractTransactionResponse = await contract.destroy(tokenId, addressHash);
+      const tx: ContractTransactionResponse = await (await contract).destroy(tokenId, addressHash);
 
       // this.logger.info(`Destroy transaction sent: ${tx.hash}. Waiting for confirmation...`);
       const receipt = await tx.wait();
@@ -810,7 +820,7 @@ export class MembershipManager {
 
       // Step 2: Verify destruction via Transfer event (burn)
       // this.logger.info('Step 2/2: Verifying destroy via Transfer event...');
-      const burnEvent = this.parseBurnEvent(receipt, tokenId, addressHash);
+      const burnEvent = await this.parseBurnEvent(receipt, tokenId, addressHash);
       // this.logger.info(
       //   `✓ Membership token #${burnEvent.tokenId} destroyed successfully from ${burnEvent.from}`
       // );
@@ -872,7 +882,7 @@ export class MembershipManager {
 
     try {
       // this.logger.info('Sending setBaseURI transaction...');
-      const tx: ContractTransactionResponse = await contract.setBaseURI(baseURI);
+      const tx: ContractTransactionResponse = await (await contract).setBaseURI(baseURI);
       // this.logger.info(`Transaction sent: ${tx.hash}. Waiting for confirmation...`);
       const receipt = await tx.wait();
       if (!receipt) {
@@ -939,9 +949,10 @@ export class MembershipManager {
    * @returns Contract instance
    */
   @ensureMembershipDeployed
-  getMembershipContract(contractAddress?: string): Contract {
+  async getMembershipContract(contractAddress?: string): Promise<Contract> {
     const address = contractAddress || this.getMembershipAddress();
-    return createContract(address, MEMBERSHIP_ABI, this.signer!);
+    const signer = await getSigner(this.provider as BrowserProvider);
+    return createContract(address, MEMBERSHIP_ABI, signer!);
   }
 
   /**
@@ -955,7 +966,7 @@ export class MembershipManager {
     const contractAddress = this.getMembershipAddress();
 
     try {
-      const name = await this.getMembershipContract().name();
+      const name = await (await this.getMembershipContract()).name();
       return name;
     } catch (error: any) {
       if (error instanceof SDKError) throw error;
@@ -977,7 +988,7 @@ export class MembershipManager {
   async getSymbol(): Promise<string> {
     const contractAddress = this.membershipAddress;
     try {
-      const symbol = await this.getMembershipContract().symbol();
+      const symbol = await (await this.getMembershipContract()).symbol();
       return symbol;
     } catch (error: any) {
       if (error instanceof SDKError) throw error;
@@ -998,7 +1009,7 @@ export class MembershipManager {
   @ensureMembershipDeployed
   async getTotalSupply(): Promise<bigint> {
     try {
-      const supply = await this.getMembershipContract().totalSupply();
+      const supply = await (await this.getMembershipContract()).totalSupply();
       return BigInt(supply);
     } catch (error: any) {
       if (error instanceof SDKError) throw error;
@@ -1024,7 +1035,7 @@ export class MembershipManager {
     }
 
     try {
-      const owner = this.getMembershipContract().ownerOf(tokenId);
+      const owner = await (await this.getMembershipContract()).ownerOf(tokenId);
       return owner;
     } catch (error: any) {
       if (error instanceof SDKError) throw error;
@@ -1051,7 +1062,7 @@ export class MembershipManager {
     }
 
     try {
-      const uri = await this.getMembershipContract().tokenURI(tokenId);
+      const uri = await (await this.getMembershipContract()).tokenURI(tokenId);
       return uri;
     } catch (error: any) {
       if (error instanceof SDKError) throw error;
@@ -1093,7 +1104,7 @@ export class MembershipManager {
     const contractAddress = this.getMembershipAddress();
 
     try {
-      const members = await contract.getMemberSnapshot(snapshotId);
+      const members = await (await contract).getMemberSnapshot(snapshotId);
       return members || [];
     } catch (error: any) {
       if (error instanceof SDKError) throw error;
@@ -1128,7 +1139,7 @@ export class MembershipManager {
     const contract = this.getMembershipContract();
 
     try {
-      const snapshotId = await contract.getLatestSnapshotId();
+      const snapshotId = await (await contract).getLatestSnapshotId();
       return BigInt(snapshotId);
     } catch (error: any) {
       if (error instanceof SDKError) throw error;
@@ -1174,7 +1185,7 @@ export class MembershipManager {
     const contract = this.getMembershipContract();
 
     try {
-      const isMember = await contract.isMemberInSnapshot(snapshotId, addressHash);
+      const isMember = await (await contract).isMemberInSnapshot(snapshotId, addressHash);
       return isMember;
     } catch (error: any) {
       if (error instanceof SDKError) throw error;

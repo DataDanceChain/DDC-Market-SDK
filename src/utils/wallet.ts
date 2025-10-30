@@ -1,5 +1,16 @@
-import { BrowserProvider, JsonRpcProvider, keccak256, toUtf8Bytes } from 'ethers';
+import { BrowserProvider, JsonRpcProvider, keccak256, toUtf8Bytes, Signer, JsonRpcSigner } from 'ethers';
 import { SDKError } from '../types';
+
+/**
+ * Create a unified ethers Provider
+ * - Prefer BrowserProvider (window.ethereum or provided EIP-1193)
+ * - Fallback to JsonRpcProvider when rpcUrl is provided
+ */
+export const getProvider = (
+  eip1193Object: any,
+): BrowserProvider => {
+  return new BrowserProvider(eip1193Object);
+};
 
 /**
  * Get signer from browser environment
@@ -21,12 +32,22 @@ import { SDKError } from '../types';
  * const tx = await signer.sendTransaction({ to: '0x...', value: ethers.parseEther('0.1') });
  * ```
  */
-export const getSigner = async (provider: BrowserProvider | JsonRpcProvider) => {
+export const getSigner = async (provider: BrowserProvider) => {
   if (!provider) {
     throw new SDKError('Provider is required', 'INVALID_PARAMETER', { provider });
   }
 
   return await provider.getSigner();
+};
+
+/**
+ * Get address from a signer
+ */
+export const getAddress = async (signer: Signer | JsonRpcSigner): Promise<string> => {
+  if (!signer) {
+    throw new SDKError('Signer is required', 'INVALID_PARAMETER', { signer });
+  }
+  return await signer.getAddress();
 };
 
 /**

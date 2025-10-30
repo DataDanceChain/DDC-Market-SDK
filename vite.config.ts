@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => {
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '');
 
+
   return {
     json: {
       // JSON files can be imported as named exports
@@ -44,9 +45,10 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
     },
     define: {
-      // 将环境变量注入到代码中
-      // Vite 会在构建时将这些替换为实际值
-      'import.meta.env': JSON.stringify(env),
+      // 将环境变量注入到代码中（按键注入，避免覆盖整个 import.meta.env）
+      'import.meta.env.API_BASE_URL': JSON.stringify(env.API_BASE_URL || ''),
+      'import.meta.env.API_TIMEOUT': JSON.stringify(env.API_TIMEOUT || '30000'),
+      'import.meta.env.DEBUG': JSON.stringify(env.DEBUG || 'false'),
     },
   };
 });

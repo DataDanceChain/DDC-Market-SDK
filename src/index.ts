@@ -12,10 +12,9 @@ export type {
   MintResult,
   DestroyResult,
   DeploymentResult,
-  NetworkConfig,
+  DDCChainConfig,
   ManagerConfig,
   ManagerParams,
-  DDCChainConfig,
 } from './types';
 
 export { SDKError } from './types';
@@ -26,6 +25,9 @@ export {
   Logger,
   getCurrentNetwork,
   ensureCorrectNetwork,
+  getProvider,
+  getSigner,
+  getAddress,
   getKeyHash,
 } from './utils';
 

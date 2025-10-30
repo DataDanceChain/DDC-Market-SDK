@@ -32,7 +32,10 @@
     "dev": "vite build --mode development --watch",
     "prepublishOnly": "pnpm run clean && pnpm run build",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "update:api": "node --experimental-strip-types api.ts"
+    "update:api": "node --experimental-strip-types api.ts",
+    "demo:dev": "pnpm --filter @ddc-market/demo run dev",
+    "demo:build:dev": "pnpm run build:dev && pnpm --filter @ddc-market/demo run dev",
+    "demo:preview": "pnpm --filter @ddc-market/demo run preview"
   },
   "keywords": [
     "ddc",
