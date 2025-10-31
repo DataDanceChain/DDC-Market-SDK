@@ -87,21 +87,10 @@ export async function switchNetwork(
   const chainIdHex = `0x${networkConfig.chain_id.toString(16)}`;
 
   try {
-    // // Check if provider supports send method (BrowserProvider in ethers v6)
-    // if (!provider || typeof (provider as any)?.send !== 'function') {
-    //   throw new SDKError(
-    //     'Network switching requires a provider that supports wallet RPC methods (BrowserProvider)',
-    //     'PROVIDER_NOT_SUPPORTED'
-    //   );
-    // }
-
     logger.info(`Requesting to switch to chain ${networkConfig.chain_id} (${chainIdHex})`);
-
     // Try to switch to the network using provider.send()
     // This works with any EIP-1193 compatible wallet
     await (provider as any).send('wallet_switchEthereumChain', [{ chainId: chainIdHex }]);
-
-    logger.info(`Successfully switched to chain ${networkConfig.chain_id}`);
   } catch (switchError: any) {
     // Error code 4902 indicates that the chain has not been added to the wallet
     if (switchError.code === 4902) {
@@ -165,32 +154,11 @@ export async function switchNetwork(
  * @returns true if provider supports chain switching (is a BrowserProvider with wallet), false otherwise
  */
 async function canSwitchChain(provider: BrowserProvider): Promise<boolean> {
-  // try {
-  //   if (!provider) {
-  //     return false;
-  //   }
-
-    // const providerAny = provider as any;
-    // Check 1: Must have a wrapped EIP-1193 provider
-    // BrowserProvider wraps window.ethereum (or similar) in providerAny.provider
-    // JsonRpcProvider doesn't have this structure
-    // if (!providerAny.provider) {
-    //   return false;
-    // }
-
-    // const eip1193Provider = providerAny.provider;
-
-    // Check 2: The wrapped provider must implement EIP-1193 request method
+    // Check: The wrapped provider must implement EIP-1193 request method
     // This is the standard interface for browser wallets
     if (typeof provider?.send === 'function' ) {
       return true;
     }
-
-  //   // return false;
-  // } catch (error) {
-  //   // If any error occurs during detection, assume cannot switch
-  //   return false;
-  // }
   return false;
 }
 

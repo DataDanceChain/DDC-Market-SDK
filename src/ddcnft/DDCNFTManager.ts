@@ -27,6 +27,7 @@ export class DDCNFTManager {
 
   // All deployed nft contract addresses
   private deployedContracts: Array<string> = [];
+  public metadataUrl?: string;
 
   constructor(config: ManagerConfig) {
     this.logger = new Logger(config?.debug || false);
@@ -410,7 +411,7 @@ export class DDCNFTManager {
     const result = await getDDCConfig({ address: walletAddress });
 
     if (result.success) {
-      const { nft_factory_address, network } = result.data.data;
+      const { nft_factory_address, network, nft_address, metadata_url } = result.data.data;
       const config: ManagerConfig = {
         provider,
         debug: debug || false,
@@ -431,7 +432,16 @@ export class DDCNFTManager {
         const signer = await getSigner(provider as BrowserProvider);
         this.instance.factoryContract = createContract(config.factoryAddress, DDCNFT_FACTORY_ABI, signer);
       }
+
+      if (nft_address) {
+        this.instance.deployedContracts= [...nft_address];
+        
+      }
       
+      if (metadata_url) {
+        this.instance.metadataUrl = metadata_url;
+      }
+
       return this.instance;
     }
     throw new SDKError('Failed to get DDC config', 'DDC_CONFIG_ERROR', { result });
@@ -515,8 +525,6 @@ export class DDCNFTManager {
    *
    * Note: We prioritize event-based address retrieval over staticCall because:
    * - Event address is emitted by the actual contract deployment, guaranteed to be correct
-   * - staticCall can be unreliable with CREATE opcode (nonce changes between simulation and execution)
-   * - This approach is more robust for production use
    *
    * @param name - NFT collection name
    * @param symbol - NFT collection symbol
@@ -574,8 +582,10 @@ export class DDCNFTManager {
       // this.logger.info(`✓ DDCNFT contract deployed successfully at ${deployedAddress}`);
 
       // Store deployed contract address
-      this.deployedContracts = addAddress(this.deployedContracts, deployedAddress);
-      await setContractAddress({ address: deployedAddress, contract: deployedAddress, type: 'nft' });
+      addAddress(this.deployedContracts, deployedAddress);
+      const signer = await getSigner(this.provider as BrowserProvider);
+      const address = await signer!.getAddress()!;
+      await setContractAddress({ address: address, contract: deployedAddress, type: 'nft' });
       this.ddcnftAddress = deployedAddress;
 
       return {
@@ -698,6 +708,13 @@ export class DDCNFTManager {
   }
 
   /**
+   * Set the current active DDCNFT contract address
+   */
+  setDDCNFTAddress(address: string): void {
+    this.ddcnftAddress = address;
+  }
+
+  /**
    * Get all deployed contract addresses
    * @returns Array of deployed contract addresses
    */
@@ -788,26 +805,12 @@ export class DDCNFTManager {
    * Mint NFT token
    * Note: NFT will be minted to the contract owner (caller of this function)
    *
-   * @example
-   * ```typescript
-   * import { ethers } from 'ethers';
-   *
-   * // Generate keyHash from user's private key
-   * const userPrivateKey = 'user_secret_key_123';
-   * const keyHash = ethers.keccak256(ethers.toUtf8Bytes(userPrivateKey));
-   *
-   * // Mint NFT
-   * const txHash = await ddcnftManager.mint(1n, keyHash);
-   * ```
-   *
    * @param tokenId - Token ID to mint (must be non-zero)
    * @param keyHash - Key hash (bytes32, keccak256 hash of user's key, cannot be zero hash)
    * @returns Transaction hash
    */
   @ensureDDCNFTDeployed
   async mint(tokenId: bigint, keyHash: string): Promise<string> {
-    // this.logger.info(`Minting NFT`, { tokenId });
-
     // Ensure correct network before transaction
     await this.ensureNetwork();
 
@@ -1162,6 +1165,13 @@ export class DDCNFTManager {
       throw new SDKError('Factory contract not available', 'FACTORY_CONTRACT_NOT_AVAILABLE');
     }
     return this.factoryAddress;
+  }
+
+  getDefaultMetadataURL(): string {
+    if (!this.metadataUrl) {
+      throw new SDKError('Metadata URL not available', 'METADATA_URL_NOT_AVAILABLE');
+    }
+    return this.metadataUrl;
   }
 }
 
