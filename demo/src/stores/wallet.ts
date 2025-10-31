@@ -41,7 +41,6 @@ export const useWalletStore = defineStore('wallet', {
     clear() {
       // Clear state
       this.walletAddress = ''
-      this.privateKey = ''
       this.connectionType = ''
       this.connected = false
       this.provider = null
