@@ -29,10 +29,10 @@ export async function getDDCConfig(
   metadata_url: string;
   
   /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在 */
-  nft_address: string[];
+  nft_address: Array<string>;
   
   /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在 */
-  membership_address: string;
+  membership_address: Array<string>;
   network: {
   chain_id: number;
   chain_name: string;
@@ -55,10 +55,10 @@ export async function getDDCConfig(
   metadata_url: string;
   
   /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在 */
-  nft_address: string[];
+  nft_address: Array<string>;
   
   /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在 */
-  membership_address: string;
+  membership_address: Array<string>;
   network: {
   chain_id: number;
   chain_name: string;

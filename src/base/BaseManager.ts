@@ -16,7 +16,7 @@ import {
   Logger,
   getSigner,
 } from '../utils';
-import { getDDCConfig, setContractAddress, setFactoryAddress } from '../service/api';
+import { getDDCConfig, setContractAddress, setFactoryAddress, transferContractOwner } from '../service/api';
 import { addAddress } from '../utils/contract';
 import { ensureContractDeployed } from './decorators';
 
@@ -327,7 +327,7 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
   }
 
   /**
-   * Transfer contract ownership
+   * Transfer contract ownership to new owner address
    */
   @ensureContractDeployed
   public async transferOwnership(newOwner: string): Promise<string> {
@@ -341,6 +341,15 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
         throw new SDKError('Transaction receipt not available', 'TX_RECEIPT_ERROR');
       }
 
+      // set contract owner to new owner
+      const signer = await getSigner(this.provider as BrowserProvider);
+      await transferContractOwner({
+        address: await signer!.getAddress(),
+        contract: this.getContractAddress()!,
+        type: this.CONTRACT_TYPE,
+        ownerAddress: newOwner,
+      });
+      
       return receipt.hash;
     } catch (error: any) {
       if (error instanceof SDKError) throw error;
