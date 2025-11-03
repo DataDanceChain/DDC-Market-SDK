@@ -4,22 +4,25 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@ddc-market/sdk": "workspace:*",
-    "@web3auth/base": "^9.7.0",
-    "@web3auth/ethereum-provider": "^9.7.0",
-    "@web3auth/modal": "^10.5.5",
+    "@tanstack/vue-query": "^5.90.6",
+    "@wagmi/vue": "^0.3.2",
+    "@web3auth/modal": "^10.5.6",
     "pinia": "^2.2.6",
-    "vue": "^3.5.22"
+    "vue": "^3.5.22",
+    "vue-router": "^4.6.3"
   },
   "devDependencies": {
     "@types/node": "^24.6.0",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
+    "buffer": "^6.0.3",
+    "process": "^0.11.10",
     "typescript": "~5.9.3",
     "vite": "^7.1.7",
     "vue-tsc": "^3.1.0"

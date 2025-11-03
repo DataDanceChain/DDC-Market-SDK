@@ -52,16 +52,16 @@ export async function validateNetwork(
 ): Promise<boolean> {
   try {
     const network = await provider.getNetwork();
-    const currentChainId = Number(network.chainId);
+    // 直接用 bigint 比较，避免类型转换
+    const isMatch = network.chainId === BigInt(expectedChainId);
 
-    logger.info(`Current chain ID: ${currentChainId}, Expected: ${expectedChainId}`);
+    logger.info(`Current chain ID: ${network.chainId}, Expected: ${expectedChainId}`);
 
-    if (currentChainId !== expectedChainId) {
-      logger.warn(`Network mismatch! Current: ${currentChainId}, Expected: ${expectedChainId}`);
-      return false;
+    if (!isMatch) {
+      logger.warn(`Network mismatch! Current: ${network.chainId}, Expected: ${expectedChainId}`);
     }
 
-    return true;
+    return isMatch;
   } catch (error) {
     logger.error('Failed to validate network:', error);
     throw new SDKError(`Failed to validate network: ${error}`, 'NETWORK_VALIDATION_ERROR', {
@@ -140,25 +140,25 @@ export async function switchNetwork(
 
 /**
  * Check if provider supports wallet RPC methods (chain switching)
- * 
+ *
  * Provider types:
  * 1. BrowserProvider: Wraps browser wallets (MetaMask, OKX, etc.)
  *    - Has internal EIP-1193 provider (window.ethereum)
  *    - Supports wallet_switchEthereumChain and wallet_addEthereumChain
- * 
+ *
  * 2. JsonRpcProvider: Direct RPC connection to node
  *    - No wallet capabilities
  *    - Cannot switch chains (would need to reconnect with different RPC URL)
- * 
+ *
  * @param provider - The ethers Provider to check
  * @returns true if provider supports chain switching (is a BrowserProvider with wallet), false otherwise
  */
 async function canSwitchChain(provider: BrowserProvider): Promise<boolean> {
-    // Check: The wrapped provider must implement EIP-1193 request method
-    // This is the standard interface for browser wallets
-    if (typeof provider?.send === 'function' ) {
-      return true;
-    }
+  // Check: The wrapped provider must implement EIP-1193 request method
+  // This is the standard interface for browser wallets
+  if (typeof provider?.send === 'function') {
+    return true;
+  }
   return false;
 }
 
