@@ -119,6 +119,18 @@ flowchart TD
 - **Membership Verification**: B2B side verifies user membership status
 - C-end scenario is relatively independent from B2B scenario, both are system users
 
+# Design Requirements
+
+- 作为 Web3 Dapp 的通用库, 需要支持 Browser 和 Node 环境下, 用户使用自己的钱包(Provider), 通过调用 DDC-Market SDK, 实现跟 DDC 合约的交互
+
+- DDC SDK 不仅支持 DDC Layer2 的链上交互, 还提供了 DDC 中心化服务, 帮助用户配置和存储相关信息 用户可以读取和设置相关信息
+
 ## Installation
 
+`pnpm install`
+
 ## Usage & Examples
+
+Browser EVM Wallets and [MetaMask Embedded Wallets (formerly Web3Auth)](https://docs.metamask.io/embedded-wallets/sdk/react/advanced/smart-accounts/)
+
+参考 /examples
