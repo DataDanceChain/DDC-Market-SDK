@@ -1,5 +1,5 @@
 {
-  "name": "@ddc-market/sdk",
+  "name": "@ddcmarket/sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for DDC Market Contract integration",
   "type": "module",
