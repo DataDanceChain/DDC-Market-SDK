@@ -121,9 +121,11 @@ flowchart TD
 
 # Design Requirements
 
-- 作为 Web3 Dapp 的通用库, 需要支持 Browser 和 Node 环境下, 用户使用自己的钱包(Provider), 通过调用 DDC-Market SDK, 实现跟 DDC 合约的交互
+- Wallet integration: Users can use their own wallet providers (EIP-1193 Standard) to interact with DDC contracts through the SDK
 
-- DDC SDK 不仅支持 DDC Layer2 的链上交互, 还提供了 DDC 中心化服务, 帮助用户配置和存储相关信息 用户可以读取和设置相关信息
+- Default centralized services for users to read/write configuration and storage information
+
+- Prepare user Private Key for Signing Contract
 
 ## Installation
 
