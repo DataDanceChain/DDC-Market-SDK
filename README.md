@@ -137,7 +137,7 @@ flowchart TD
 
 - Browser EVM Wallets and [MetaMask Embedded Wallets (formerly Web3Auth)](https://docs.metamask.io/embedded-wallets/sdk/react/advanced/smart-accounts/)
 
-- See /demo folder
+- See /demo folder, input your wallet private key in `DDCNFTDemo.vue` and `WalletConnector.vue` to start test
 
 ## local demo
 
