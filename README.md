@@ -129,8 +129,16 @@ flowchart TD
 
 `pnpm install`
 
+## Build SDK
+
+`pnpm build:dev`
+
 ## Usage & Examples
 
-Browser EVM Wallets and [MetaMask Embedded Wallets (formerly Web3Auth)](https://docs.metamask.io/embedded-wallets/sdk/react/advanced/smart-accounts/)
+- Browser EVM Wallets and [MetaMask Embedded Wallets (formerly Web3Auth)](https://docs.metamask.io/embedded-wallets/sdk/react/advanced/smart-accounts/)
 
-参考 /examples
+- See /demo folder, input your wallet private key in `DDCNFTDemo.vue` and `WalletConnector.vue` to start test
+
+## local demo
+
+`pnpm demo:dev`

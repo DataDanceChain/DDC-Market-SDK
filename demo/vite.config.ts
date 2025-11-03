@@ -16,4 +16,7 @@ export default defineConfig({
     // Avoid pre-bundling the SDK; use the built output as-is
     exclude: ['@ddc-market/sdk'],
   },
+  define: {
+    global: 'globalThis',
+  },
 })
