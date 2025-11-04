@@ -44,9 +44,7 @@ const walletStore = useWalletStore();
 const walletProvider = ref<BrowserProvider | null>(null);
 const walletSigner = ref<any>(null); // Store signer reference
 const walletAddress = ref<string>('');
-const walletPrivateKey = ref<string>(
-  'aa721d08e3a534dec4736d92e0cb5b8b9e608734119a53742945bafb804de433'
-);
+const walletPrivateKey = ref<string>('');
 const initializationError = ref<string>('');
 
 // ============================================================================
@@ -145,12 +143,19 @@ async function requestUserPrivateKey() {
 
   // Request private key (requires user consent)
   try {
+    console.log('requesting private key', provider.value);
+    // https://github.com/orgs/Web3Auth/discussions/322
+    // For EVM Chains (Ethereum, Polygon, BNB Chain, etc.): use eth_private_key
+    // For Solana: use solanaPrivateKey
+    // For other customchains: use private_key
     const privateKey = await provider.value.request({
-      method: 'eth_private_key',
+      method: 'private_key',
     });
 
     // Handle the private key securely
     console.log('Private key retrieved successfully');
+    walletPrivateKey.value = privateKey as string;
+    walletStore.setWalletPrivateKey(privateKey as string);
     return privateKey;
   } catch (error) {
     // Handle export rejection or failure
@@ -284,6 +289,14 @@ async function handleSwitchChain() {
           <span v-if="balanceError">Error: {{ balanceError.message }}</span>
         </div>
       </div> -->
+      <!-- Not Connected: Display connection button -->
+      <div v-if="!isConnected" class="connect-options">
+        <button @click="connect" class="btn btn-primary" :disabled="connectLoading">
+          <span v-if="!connectLoading">🌐 Connect with Web3Auth</span>
+          <span v-else>⏳ Connecting...</span>
+        </button>
+        <p class="info-text">Web3Auth supports Google, Twitter, Discord, GitHub and more!</p>
+      </div>
 
       <!-- Export Private Key -->
       <div class="export-section">
@@ -301,15 +314,6 @@ async function handleSwitchChain() {
           </p>
         </div>
       </div>
-    </div>
-
-    <!-- Not Connected: Display connection button -->
-    <div v-if="!isConnected" class="connect-options">
-      <button @click="connect" class="btn btn-primary" :disabled="connectLoading">
-        <span v-if="!connectLoading">🌐 Connect with Web3Auth</span>
-        <span v-else>⏳ Connecting...</span>
-      </button>
-      <p class="info-text">Web3Auth supports Google, Twitter, Discord, GitHub and more!</p>
     </div>
 
     <!-- Connected: Display disconnect button -->
