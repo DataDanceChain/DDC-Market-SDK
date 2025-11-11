@@ -1,7 +1,13 @@
-import { Contract, ContractTransactionResponse, Interface, BrowserProvider } from 'ethers';
+import {
+  Contract,
+  ContractTransactionResponse,
+  Interface,
+  BrowserProvider,
+  JsonRpcProvider,
+} from 'ethers';
 import type { DeploymentResult, ManagerParams, ManagerConfig } from '../types';
 import { SDKError } from '../types';
-import { getSigner } from '../utils';
+import { resolveProvider, getSigner } from '../utils';
 import { DDCNFT_ABI, DDCNFT_FACTORY_ABI } from '../abi';
 import { getDDCConfig } from '../service/api';
 import DDCNFTFactoryJson from '../abi/DDCNFTFactory.json';
@@ -19,7 +25,7 @@ export class DDCNFTManager extends BaseManager<'nft'> {
   protected readonly CONTRACT_TYPE = 'nft' as const;
 
   private static instance: DDCNFTManager | null = null;
-  
+
   protected getManagerName(): string {
     return 'DDCNFTManager';
   }
@@ -42,7 +48,11 @@ export class DDCNFTManager extends BaseManager<'nft'> {
    * @protected
    * @returns Contract address from event, or empty string if event not found
    */
-  protected parseDeploymentEvent(receipt: any, expectedName: string, expectedSymbol: string): string {
+  protected parseDeploymentEvent(
+    receipt: any,
+    expectedName: string,
+    expectedSymbol: string
+  ): string {
     try {
       // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
       // Using contract.interface directly can cause "Receiver must be an instance of class _Interface" error
@@ -370,11 +380,32 @@ export class DDCNFTManager extends BaseManager<'nft'> {
     );
   }
 
-
   /**
    * Init Instance of DDCNFTManager
-   * @param config - Configuration object
+   * Supports both BrowserProvider and JsonRpcProvider modes
+   *
+   * @param manageConfig - Configuration object
    * @returns DDCNFTManager instance
+   *
+   * @example
+   * ```typescript
+   * // BrowserProvider mode - user constructs BrowserProvider
+   * import { BrowserProvider } from 'ethers';
+   * const manager = await DDCNFTManager.init({
+   *   walletAddress: '0x...',
+   *   provider: new BrowserProvider(window.ethereum),
+   *   debug: true
+   * });
+   *
+   * // JsonRpcProvider mode - using descriptor (SDK constructs for you to avoid version conflicts)
+   * // rpcUrl and chainId are automatically fetched from getDDCConfig API
+   * const manager = await DDCNFTManager.init({
+   *   walletAddress: '0x...',
+   *   provider: { type: 'jsonRpc' }, // rpcUrl and chainId auto-filled from API
+   *   signer: { privateKey: '0x...' },
+   *   debug: true
+   * });
+   * ```
    **/
   static async init(manageConfig: ManagerParams): Promise<DDCNFTManager> {
     if (!manageConfig) {
@@ -383,39 +414,64 @@ export class DDCNFTManager extends BaseManager<'nft'> {
       });
     }
 
-    const { walletAddress, provider, debug } = manageConfig;
-    // query ddc config from api
+    const { walletAddress, provider, signer, debug } = manageConfig;
+
+    // Query ddc config from api first to get network config
+    // This allows us to auto-fill rpcUrl/chainId for JsonRpcProvider mode
     const result = await getDDCConfig({ address: walletAddress });
 
-    if (result.success) {
-      const { nft_factory_address, network, nft_address, metadata_url } = result.data.data;
-      const config: ManagerConfig = {
-        provider,
-        debug: debug || false,
-        network: network,
-        factoryAddress: nft_factory_address,
-      };
-      
-      this.instance = new DDCNFTManager(config);
-      await this.instance.ensureNetwork();
-            
-      if (config.factoryAddress) {
-        this.instance.factoryAddress = config.factoryAddress;
-        const signer = await getSigner(provider as BrowserProvider);
-        this.instance.factoryContract = createContract(config.factoryAddress, DDCNFT_FACTORY_ABI, signer);
-      }
-
-      if (nft_address) {
-        this.instance.deployedContracts = [...nft_address];
-      }
-      
-      if (metadata_url) {
-        this.instance.metadataUrl = metadata_url;
-      }
-
-      return this.instance;
+    if (!result.success) {
+      throw new SDKError('Failed to get DDC config', 'DDC_CONFIG_ERROR', { result });
     }
-    throw new SDKError('Failed to get DDC config', 'DDC_CONFIG_ERROR', { result });
+
+    const { nft_factory_address, network, nft_address, metadata_url } = result.data.data;
+
+    // Resolve provider from descriptor or use directly
+    // For JsonRpcProviderDescriptor, network config can auto-fill missing rpcUrl/chainId
+    const resolvedProvider = resolveProvider(provider, network);
+
+    // Validate signer config for JsonRpcProvider mode
+    if (resolvedProvider instanceof JsonRpcProvider && !signer) {
+      throw new SDKError(
+        'Signer configuration is required for JsonRpcProvider mode. Please provide signer with privateKey.',
+        'MISSING_SIGNER_CONFIG',
+        { providerType: 'JsonRpcProvider' }
+      );
+    }
+
+    const config: ManagerConfig = {
+      provider: resolvedProvider,
+      debug: debug || false,
+      network: network,
+      factoryAddress: nft_factory_address,
+      signerConfig: signer,
+    };
+
+    this.instance = new DDCNFTManager(config);
+    await this.instance.ensureNetwork();
+
+    if (config.factoryAddress) {
+      this.instance.factoryAddress = config.factoryAddress;
+      if (!this.instance.provider) {
+        throw new SDKError('Provider is not available', 'PROVIDER_NOT_AVAILABLE');
+      }
+      const signerInstance = await getSigner(this.instance.provider, this.instance.signerConfig);
+      this.instance.factoryContract = createContract(
+        config.factoryAddress,
+        DDCNFT_FACTORY_ABI,
+        signerInstance
+      );
+    }
+
+    if (nft_address) {
+      this.instance.deployedContracts = [...nft_address];
+    }
+
+    if (metadata_url) {
+      this.instance.metadataUrl = metadata_url;
+    }
+
+    return this.instance;
   }
 
   /**
@@ -759,6 +815,4 @@ export class DDCNFTManager extends BaseManager<'nft'> {
       });
     }
   }
-
 }
-

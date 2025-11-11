@@ -36,6 +36,14 @@ const router = createRouter({
         title: 'DDC Market SDK Demo - Web3Auth Mode',
       },
     },
+    {
+      path: '/jsonrpc',
+      name: 'jsonrpc',
+      component: () => import('../views/JsonRpcProviderApp.vue'),
+      meta: {
+        title: 'DDC Market SDK Demo - JsonRpcProvider Mode',
+      },
+    },
   ],
 });
 

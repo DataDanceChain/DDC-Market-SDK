@@ -43,6 +43,26 @@ export async function getProviderFromRunner(runner: Provider): Promise<Provider>
 }
 
 /**
+ * Get chainId from BrowserProvider using direct RPC call
+ * This avoids the "network changed" false positive error from getNetwork()
+ */
+async function getChainIdFromBrowserProvider(
+  provider: BrowserProvider,
+  logger: Logger
+): Promise<bigint> {
+  try {
+    // Use direct RPC call to avoid getNetwork() false positive errors
+    const chainIdHex = await (provider as any).send('eth_chainId', []);
+    return BigInt(chainIdHex);
+  } catch (error) {
+    logger.warn('Failed to get chainId via eth_chainId, falling back to getNetwork()', error);
+    // Fallback to getNetwork() if direct RPC call fails
+    const network = await provider.getNetwork();
+    return network.chainId;
+  }
+}
+
+/**
  * Check if current network matches expected chainId
  */
 export async function validateNetwork(
@@ -51,18 +71,58 @@ export async function validateNetwork(
   logger: Logger
 ): Promise<boolean> {
   try {
-    const network = await provider.getNetwork();
-    // 直接用 bigint 比较，避免类型转换
-    const isMatch = network.chainId === BigInt(expectedChainId);
+    let currentChainId: bigint;
 
-    logger.info(`Current chain ID: ${network.chainId}, Expected: ${expectedChainId}`);
+    // For BrowserProvider, use direct RPC call to avoid false positive "network changed" errors
+    if (provider instanceof BrowserProvider) {
+      currentChainId = await getChainIdFromBrowserProvider(provider, logger);
+    } else {
+      // For other providers, use getNetwork() as usual
+      const network = await provider.getNetwork();
+      currentChainId = network.chainId;
+    }
+
+    // 直接用 bigint 比较，避免类型转换
+    const isMatch = currentChainId === BigInt(expectedChainId);
+
+    logger.info(`Current chain ID: ${currentChainId}, Expected: ${expectedChainId}`);
 
     if (!isMatch) {
-      logger.warn(`Network mismatch! Current: ${network.chainId}, Expected: ${expectedChainId}`);
+      logger.warn(`Network mismatch! Current: ${currentChainId}, Expected: ${expectedChainId}`);
     }
 
     return isMatch;
-  } catch (error) {
+  } catch (error: any) {
+    // Handle network change error - this can be a false positive in ethers v6
+    if (error?.code === 'NETWORK_ERROR' && error?.message?.includes('network changed')) {
+      logger.warn(
+        'Network change detected during validation (may be false positive), retrying...',
+        error
+      );
+      try {
+        // Retry once with direct RPC call for BrowserProvider
+        if (provider instanceof BrowserProvider) {
+          const currentChainId = await getChainIdFromBrowserProvider(provider, logger);
+          const isMatch = currentChainId === BigInt(expectedChainId);
+          logger.info(`Retry - Current chain ID: ${currentChainId}, Expected: ${expectedChainId}`);
+          return isMatch;
+        } else {
+          // For other providers, retry getNetwork()
+          const network = await provider.getNetwork();
+          const isMatch = network.chainId === BigInt(expectedChainId);
+          logger.info(`Retry - Current chain ID: ${network.chainId}, Expected: ${expectedChainId}`);
+          return isMatch;
+        }
+      } catch (retryError) {
+        logger.error('Failed to validate network on retry:', retryError);
+        throw new SDKError(
+          `Failed to validate network after retry: ${retryError}`,
+          'NETWORK_VALIDATION_ERROR',
+          { expectedChainId, error: retryError }
+        );
+      }
+    }
+
     logger.error('Failed to validate network:', error);
     throw new SDKError(`Failed to validate network: ${error}`, 'NETWORK_VALIDATION_ERROR', {
       expectedChainId,
@@ -252,13 +312,42 @@ export async function getCurrentNetwork(provider: Provider): Promise<{
   name: string;
 }> {
   try {
-    const network = await provider.getNetwork();
-
-    return {
-      chainId: Number(network.chainId),
-      name: network.name,
-    };
-  } catch (error) {
+    // For BrowserProvider, use direct RPC call to avoid false positive "network changed" errors
+    if (provider instanceof BrowserProvider) {
+      const chainId = await getChainIdFromBrowserProvider(provider, new Logger(false));
+      // For BrowserProvider, we can't easily get network name via RPC, so use a generic name
+      return {
+        chainId: Number(chainId),
+        name: `Chain ${chainId}`,
+      };
+    } else {
+      // For other providers, use getNetwork() as usual
+      const network = await provider.getNetwork();
+      return {
+        chainId: Number(network.chainId),
+        name: network.name,
+      };
+    }
+  } catch (error: any) {
+    // Handle network change error - this can be a false positive in ethers v6
+    if (error?.code === 'NETWORK_ERROR' && error?.message?.includes('network changed')) {
+      // Retry with direct RPC call for BrowserProvider
+      if (provider instanceof BrowserProvider) {
+        try {
+          const chainId = await getChainIdFromBrowserProvider(provider, new Logger(false));
+          return {
+            chainId: Number(chainId),
+            name: `Chain ${chainId}`,
+          };
+        } catch (retryError) {
+          throw new SDKError(
+            `Failed to get current network after retry: ${retryError}`,
+            'GET_NETWORK_ERROR',
+            { error: retryError }
+          );
+        }
+      }
+    }
     throw new SDKError(`Failed to get current network: ${error}`, 'GET_NETWORK_ERROR', { error });
   }
 }

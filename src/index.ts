@@ -15,7 +15,12 @@ export type {
   DDCChainConfig,
   ManagerConfig,
   ManagerParams,
+  JsonRpcProviderDescriptor,
+  SignerConfig,
 } from './types';
+
+// Re-export ProviderDescriptor as alias for JsonRpcProviderDescriptor for convenience
+export type { ProviderDescriptor } from './types';
 
 export { SDKError } from './types';
 
@@ -29,7 +34,12 @@ export {
   getSigner,
   getAddress,
   getKeyHash,
+  createJsonRpcProvider,
+  resolveProvider,
 } from './utils';
+
+// Export utility types (re-export ethers types for convenience)
+export type { JsonRpcApiProviderOptions } from 'ethers';
 
 // Export HTTP service
 export { httpService, requestGet, requestPost } from './service';

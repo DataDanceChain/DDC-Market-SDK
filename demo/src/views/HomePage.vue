@@ -7,18 +7,22 @@
  * - Web3Auth: Social login with embedded wallets
  */
 
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-const router = useRouter()
-const sdkVersion = ref<string>('0.1.0')
+const router = useRouter();
+const sdkVersion = ref<string>('0.1.0');
 
 function navigateToMetaMask() {
-  router.push('/metamask')
+  router.push('/metamask');
 }
 
 function navigateToWeb3Auth() {
-  router.push('/web3auth')
+  router.push('/web3auth');
+}
+
+function navigateToJsonRpc() {
+  router.push('/jsonrpc');
 }
 </script>
 
@@ -56,9 +60,7 @@ function navigateToWeb3Auth() {
               <li>Full control of your keys</li>
               <li>Widely supported</li>
             </ul>
-            <button class="select-btn btn-metamask">
-              Connect with MetaMask →
-            </button>
+            <button class="select-btn btn-metamask">Connect with MetaMask →</button>
           </div>
 
           <!-- Web3Auth Option -->
@@ -67,17 +69,30 @@ function navigateToWeb3Auth() {
               <span class="icon-text">🌐</span>
             </div>
             <h3>Web3Auth</h3>
-            <p class="wallet-description">
-              Connect using social accounts with embedded wallets
-            </p>
+            <p class="wallet-description">Connect using social accounts with embedded wallets</p>
             <ul class="features">
               <li>Social login (Google, Twitter, etc.)</li>
               <li>No extension required</li>
               <li>User-friendly experience</li>
             </ul>
-            <button class="select-btn btn-web3auth">
-              Connect with Web3Auth →
-            </button>
+            <button class="select-btn btn-web3auth">Connect with Web3Auth →</button>
+          </div>
+
+          <!-- JsonRpcProvider Option -->
+          <div class="wallet-card" @click="navigateToJsonRpc">
+            <div class="wallet-icon jsonrpc-icon">
+              <span class="icon-text">🔗</span>
+            </div>
+            <h3>JsonRpcProvider</h3>
+            <p class="wallet-description">
+              Direct RPC connection with private key for server-side or automated testing
+            </p>
+            <ul class="features">
+              <li>No wallet extension needed</li>
+              <li>Direct blockchain connection</li>
+              <li>Perfect for backend services</li>
+            </ul>
+            <button class="select-btn btn-jsonrpc">JsonRpcProvider Demo →</button>
           </div>
         </div>
       </section>
@@ -112,9 +127,17 @@ function navigateToWeb3Auth() {
       <section class="notes-section">
         <h3>⚠️ Important Notes</h3>
         <ul>
-          <li><strong>Test Network</strong>: Recommend testing on test networks (e.g. Sepolia, Goerli)</li>
-          <li><strong>Private Key Security</strong>: Never expose private keys in production or public settings</li>
-          <li><strong>Transaction Confirmation</strong>: On-chain operations require waiting for block confirmation</li>
+          <li>
+            <strong>Test Network</strong>: Recommend testing on test networks (e.g. Sepolia, Goerli)
+          </li>
+          <li>
+            <strong>Private Key Security</strong>: Never expose private keys in production or public
+            settings
+          </li>
+          <li>
+            <strong>Transaction Confirmation</strong>: On-chain operations require waiting for block
+            confirmation
+          </li>
         </ul>
       </section>
     </main>
@@ -229,6 +252,10 @@ function navigateToWeb3Auth() {
   border-color: #667eea;
 }
 
+.wallet-card:hover.wallet-card:nth-child(3) {
+  border-color: #f5576c;
+}
+
 .wallet-icon {
   width: 80px;
   height: 80px;
@@ -246,6 +273,10 @@ function navigateToWeb3Auth() {
 
 .web3auth-icon {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.jsonrpc-icon {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
 .icon-text {
@@ -279,7 +310,7 @@ function navigateToWeb3Auth() {
 }
 
 .features li:before {
-  content: "✓";
+  content: '✓';
   position: absolute;
   left: 0;
   color: #28a745;
@@ -316,6 +347,16 @@ function navigateToWeb3Auth() {
 .btn-web3auth:hover {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-jsonrpc {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.btn-jsonrpc:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
 }
 
 /* Features Section */
@@ -366,7 +407,7 @@ function navigateToWeb3Auth() {
 }
 
 .feature-card li:before {
-  content: "•";
+  content: '•';
   position: absolute;
   left: 0;
   color: #667eea;
