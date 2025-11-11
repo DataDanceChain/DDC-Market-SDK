@@ -10,12 +10,12 @@
  */
 
 import { ref, toRaw } from 'vue';
-import { DDCNFTManager, getKeyHash } from '@ddc-market/sdk';
+import { DDCNFTManager, getKeyHash, getAddressFromPrivateKey } from '@ddc-market/sdk';
 
 // ============================================================================
 // State - User Inputs (fill these)
 // ============================================================================
-const privateKey = ref('');
+const privateKey = ref('f28803c57022b5b83585498b8b45c26eef984aaf9e50ac16131c0fdd4913b509');
 const walletAddress = ref('');
 
 // ============================================================================
@@ -26,6 +26,7 @@ const factoryAddress = ref('');
 const nftContractAddress = ref('');
 const deployedContracts = ref<string[]>([]); // All deployed contracts
 const selectedContract = ref(''); // User selected contract address
+const resolvedWalletAddress = ref(''); // Address resolved from privateKey (if auto-extracted)
 
 // ============================================================================
 // State - Operations
@@ -47,17 +48,36 @@ const status = ref('');
 async function initializeManager() {
   if (loading.value) return;
 
-  if (!privateKey.value.trim() || !walletAddress.value.trim()) {
-    status.value = 'Please fill privateKey and walletAddress';
+  if (!privateKey.value.trim()) {
+    status.value = 'Please fill privateKey';
     return;
   }
 
   try {
     loading.value = true;
     status.value = 'Initializing...';
+    resolvedWalletAddress.value = '';
 
+    // SDK will automatically extract address from privateKey if walletAddress is empty/undefined
+    // Extract here first to show in UI (SDK will do the same internally)
+    const providedAddress = walletAddress.value.trim();
+    if (!providedAddress) {
+      // Preview: Extract address to show user what will be used
+      try {
+        resolvedWalletAddress.value = getAddressFromPrivateKey(privateKey.value.trim());
+        console.log('resolvedWalletAddress', resolvedWalletAddress.value);
+        status.value = `Auto-extracting address from privateKey: ${resolvedWalletAddress.value}...`;
+      } catch (error: any) {
+        status.value = `Failed to extract address from privateKey: ${error.message}`;
+        console.error(error);
+        return;
+      }
+    }
+
+    // SDK's resolveWalletAddress will handle empty string and extract from privateKey
+    // We can pass empty string or the extracted address - SDK will use the extracted one
     nftManager.value = await DDCNFTManager.init({
-      walletAddress: walletAddress.value.trim(),
+      walletAddress: '',
       provider: { type: 'jsonRpc' },
       signer: { privateKey: privateKey.value.trim() },
       debug: false,
@@ -74,7 +94,11 @@ async function initializeManager() {
       nftManager.value.setContractAddress(contracts[0]);
     }
 
-    status.value = 'Initialized successfully';
+    if (resolvedWalletAddress.value && !providedAddress) {
+      status.value = `✓ Initialized successfully! Address auto-extracted: ${resolvedWalletAddress.value}`;
+    } else {
+      status.value = '✓ Initialized successfully';
+    }
   } catch (error: any) {
     status.value = `Error: ${error.message}`;
     console.error(error);
@@ -241,13 +265,19 @@ async function queryNFT() {
         />
       </div>
       <div class="form-group">
-        <label>Wallet Address:</label>
+        <label>Wallet Address (Optional):</label>
         <input
           v-model="walletAddress"
           type="text"
-          placeholder="0x..."
+          placeholder="0x... (leave empty to auto-extract from privateKey)"
           :disabled="loading || !!nftManager"
         />
+        <small class="form-hint">
+          Optional: If empty, address will be automatically extracted from privateKey
+        </small>
+      </div>
+      <div v-if="resolvedWalletAddress" class="info resolved-address">
+        ✓ Auto-extracted Address: {{ resolvedWalletAddress }}
       </div>
       <button
         @click="initializeManager"
@@ -464,6 +494,20 @@ h2 {
   font-size: 0.85rem;
   word-break: break-all;
   border: 1px solid #28a745;
+}
+
+.resolved-address {
+  border-color: #667eea;
+  background: #f0f3ff;
+  margin-top: 0.5rem;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 0.25rem;
+  color: #666;
+  font-size: 0.85rem;
+  font-style: italic;
 }
 
 .status {

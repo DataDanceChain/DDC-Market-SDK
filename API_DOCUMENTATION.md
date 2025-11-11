@@ -30,7 +30,7 @@ static async init(manageConfig: ManagerParams): Promise<DDCNFTManager>
 **Parameters:**
 
 - `manageConfig` (ManagerParams)
-  - `walletAddress` (string): Wallet address
+  - `walletAddress` (string): Wallet address, Empty if is JsonRpcProvider mode by private key
   - `provider` (BrowserProvider | JsonRpcProviderDescriptor): Provider instance or descriptor
     - BrowserProvider mode: Pass `new BrowserProvider(window.ethereum)` instance
     - JsonRpcProvider mode: Pass `{ type: 'jsonRpc' }` descriptor

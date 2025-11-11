@@ -7,7 +7,7 @@ import {
 } from 'ethers';
 import type { DeploymentResult, ManagerParams, ManagerConfig } from '../types';
 import { SDKError } from '../types';
-import { resolveProvider, getSigner } from '../utils';
+import { resolveProvider, getSigner, resolveWalletAddress } from '../utils';
 import { DDCNFT_ABI, DDCNFT_FACTORY_ABI } from '../abi';
 import { getDDCConfig } from '../service/api';
 import DDCNFTFactoryJson from '../abi/DDCNFTFactory.json';
@@ -416,9 +416,13 @@ export class DDCNFTManager extends BaseManager<'nft'> {
 
     const { walletAddress, provider, signer, debug } = manageConfig;
 
+    // Resolve wallet address: if JsonRpcProvider mode and signer provided, extract from privateKey
+    // Wallet object has address property that can be accessed synchronously
+    const resolvedWalletAddress = resolveWalletAddress(provider, walletAddress, signer);
+
     // Query ddc config from api first to get network config
     // This allows us to auto-fill rpcUrl/chainId for JsonRpcProvider mode
-    const result = await getDDCConfig({ address: walletAddress });
+    const result = await getDDCConfig({ address: resolvedWalletAddress });
 
     if (!result.success) {
       throw new SDKError('Failed to get DDC config', 'DDC_CONFIG_ERROR', { result });

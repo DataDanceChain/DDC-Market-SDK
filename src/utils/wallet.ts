@@ -215,6 +215,101 @@ export const getAddress = async (signer: Signer | JsonRpcSigner): Promise<string
 };
 
 /**
+ * Get wallet address from private key
+ * Wallet object has address property that can be accessed synchronously
+ *
+ * @param privateKey - Private key string
+ * @returns Wallet address
+ * @throws {SDKError} If private key is invalid
+ *
+ * @example
+ * ```typescript
+ * import { getAddressFromPrivateKey } from '@ddc-market/sdk';
+ *
+ * const address = getAddressFromPrivateKey('0x...');
+ * console.log(`Wallet address: ${address}`);
+ * ```
+ */
+export function getAddressFromPrivateKey(privateKey: string): string {
+  if (!privateKey || typeof privateKey !== 'string') {
+    throw new SDKError('Private key is required and must be a string', 'INVALID_PARAMETER', {
+      privateKey,
+    });
+  }
+
+  try {
+    // Wallet can be created without provider to get address synchronously
+    const wallet = new Wallet(privateKey);
+    return wallet.address;
+  } catch (error: any) {
+    throw new SDKError(
+      `Failed to get address from private key: ${error.message || error}`,
+      'ADDRESS_EXTRACTION_ERROR',
+      { error: error.message || error }
+    );
+  }
+}
+
+/**
+ * Resolve wallet address from ManagerParams
+ * If JsonRpcProvider mode and signer provided, extract address from privateKey
+ * Otherwise, use the provided walletAddress
+ *
+ * @param provider - Provider instance or descriptor
+ * @param walletAddress - Wallet address (optional for JsonRpcProvider mode)
+ * @param signer - Signer configuration (optional)
+ * @returns Resolved wallet address
+ * @throws {SDKError} If address cannot be resolved
+ *
+ * @example
+ * ```typescript
+ * import { resolveWalletAddress } from '@ddc-market/sdk';
+ *
+ * // JsonRpcProvider mode - extract from privateKey
+ * const address = resolveWalletAddress(
+ *   { type: 'jsonRpc' },
+ *   undefined,
+ *   { privateKey: '0x...' }
+ * );
+ *
+ * // BrowserProvider mode - use provided address
+ * const address = resolveWalletAddress(
+ *   new BrowserProvider(window.ethereum),
+ *   '0x...',
+ *   undefined
+ * );
+ * ```
+ */
+export function resolveWalletAddress(
+  provider: BrowserProvider | JsonRpcProviderDescriptor,
+  walletAddress: string | undefined,
+  signer?: SignerConfig
+): string {
+  // Check if it's JsonRpcProvider mode (descriptor with type 'jsonRpc')
+  const isJsonRpcProvider =
+    typeof provider === 'object' &&
+    'type' in provider &&
+    provider.type === 'jsonRpc' &&
+    signer?.privateKey;
+
+  if (isJsonRpcProvider) {
+    // Extract address from private key (Wallet object has address property)
+    return getAddressFromPrivateKey(signer.privateKey);
+  }
+
+  // For BrowserProvider mode, walletAddress is required
+  if (!walletAddress) {
+    throw new SDKError(
+      'walletAddress is required for BrowserProvider mode, or provide signer.privateKey for JsonRpcProvider mode',
+      'MISSING_WALLET_ADDRESS',
+      { provider, hasSigner: !!signer }
+    );
+  }
+
+  return walletAddress;
+}
+
+/**
  * Generate a bytes32 hash from a key string
  * This is commonly used for NFT operations (mint, transfer, destroy)
  *

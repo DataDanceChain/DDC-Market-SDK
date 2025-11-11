@@ -33,6 +33,8 @@ export {
   getProvider,
   getSigner,
   getAddress,
+  getAddressFromPrivateKey,
+  resolveWalletAddress,
   getKeyHash,
   createJsonRpcProvider,
   resolveProvider,
