@@ -1,51 +1,51 @@
-# DDC Market SDK API 文档
+# DDC Market SDK API Documentation
 
-本文档按照使用流程顺序整理 SDK API，从初始化到合约操作的完整流程。
+This document organizes SDK APIs in the order of usage flow, from initialization to contract operations.
 
-## 目录
+## Table of Contents
 
-- [1. 初始化](#1-初始化)
-- [2. 工厂合约部署](#2-工厂合约部署)
-- [3. 子合约部署](#3-子合约部署)
-- [4. 合约选择与管理](#4-合约选择与管理)
-- [5. DDCNFT 合约操作](#5-ddcnft-合约操作)
-- [6. Membership 合约操作](#6-membership-合约操作)
-- [7. 通用合约操作](#7-通用合约操作)
-- [8. 工具函数](#8-工具函数)
+- [1. Initialization](#1-initialization)
+- [2. Factory Contract Deployment](#2-factory-contract-deployment)
+- [3. Sub-contract Deployment](#3-sub-contract-deployment)
+- [4. Contract Selection and Management](#4-contract-selection-and-management)
+- [5. DDCNFT Contract Operations](#5-ddcnft-contract-operations)
+- [6. Membership Contract Operations](#6-membership-contract-operations)
+- [7. Common Contract Operations](#7-common-contract-operations)
+- [8. Utility Functions](#8-utility-functions)
 
 ---
 
-## 1. 初始化
+## 1. Initialization
 
 ### 1.1 DDCNFTManager.init()
 
-初始化 DDCNFT Manager 实例。
+Initialize DDCNFT Manager instance.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 static async init(manageConfig: ManagerParams): Promise<DDCNFTManager>
 ```
 
-**参数：**
+**Parameters:**
 
 - `manageConfig` (ManagerParams)
-  - `walletAddress` (string): 钱包地址
-  - `provider` (BrowserProvider | JsonRpcProviderDescriptor): Provider 实例或描述符
-    - BrowserProvider 模式：传入 `new BrowserProvider(window.ethereum)` 实例
-    - JsonRpcProvider 模式：传入 `{ type: 'jsonRpc' }` 描述符
-  - `signer` (SignerConfig, 可选): JsonRpcProvider 模式下必填
-    - `privateKey` (string): 私钥
-  - `debug` (boolean, 可选): 是否启用调试日志
+  - `walletAddress` (string): Wallet address
+  - `provider` (BrowserProvider | JsonRpcProviderDescriptor): Provider instance or descriptor
+    - BrowserProvider mode: Pass `new BrowserProvider(window.ethereum)` instance
+    - JsonRpcProvider mode: Pass `{ type: 'jsonRpc' }` descriptor
+  - `signer` (SignerConfig, optional): Required in JsonRpcProvider mode
+    - `privateKey` (string): Private key
+  - `debug` (boolean, optional): Enable debug logging
 
-**返回值：**
+**Return Value:**
 
-- `Promise<DDCNFTManager>`: Manager 实例
+- `Promise<DDCNFTManager>`: Manager instance
 
-**示例：**
+**Example:**
 
 ```typescript
-// BrowserProvider 模式
+// BrowserProvider mode
 import { BrowserProvider } from 'ethers';
 import { getProvider, getSigner, getAddress, DDCNFTManager } from '@ddc-market/sdk';
 
@@ -56,7 +56,7 @@ const manager: DDCNFTManager = await DDCNFTManager.init({
   debug: true,
 });
 
-// JsonRpcProvider 模式
+// JsonRpcProvider mode
 const manager = await DDCNFTManager.init({
   walletAddress: '0x...',
   provider: { type: 'jsonRpc' },
@@ -65,46 +65,46 @@ const manager = await DDCNFTManager.init({
 });
 ```
 
-**说明：**
+**Notes:**
 
-- 初始化只需要全局唯一一个
-- 初始化时会自动调用 API 获取网络配置
-- JsonRpcProvider 模式下会自动从 API 获取 rpcUrl 和 chainId
-- 如果已有工厂合约地址，会自动加载
+- Only one global instance is needed for initialization
+- Network configuration is automatically fetched from API during initialization
+- In JsonRpcProvider mode, rpcUrl and chainId are automatically fetched from API
+- If factory contract address already exists, it will be automatically loaded
 
 ---
 
 ### 1.2 MembershipManager.init()
 
-初始化 Membership Manager 实例。
+Initialize Membership Manager instance.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 static async init(manageConfig: ManagerParams): Promise<MembershipManager>
 ```
 
-**参数：**
+**Parameters:**
 
-- 同 `DDCNFTManager.init()`
+- Same as `DDCNFTManager.init()`
 
-**返回值：**
+**Return Value:**
 
-- `Promise<MembershipManager>`: Manager 实例
+- `Promise<MembershipManager>`: Manager instance
 
-**示例：**
+**Example:**
 
 ```typescript
 import { MembershipManager } from '@ddc-market/sdk';
 
-// BrowserProvider 模式
+// BrowserProvider mode
 const manager: MembershipManager = await MembershipManager.init({
   walletAddress: '0x...',
   provider: new BrowserProvider(window.ethereum),
   debug: true,
 });
 
-// JsonRpcProvider 模式
+// JsonRpcProvider mode
 const manager = await MembershipManager.init({
   walletAddress: '0x...',
   provider: { type: 'jsonRpc' },
@@ -115,30 +115,30 @@ const manager = await MembershipManager.init({
 
 ---
 
-## 2. 工厂合约部署
+## 2. Factory Contract Deployment
 
 ### 2.1 deployFactory()
 
-部署工厂合约（DDCNFTFactory 或 MembershipFactory）。
+Deploy factory contract (DDCNFTFactory or MembershipFactory).
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async deployFactory(): Promise<DeploymentResult>
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
 - `Promise<DeploymentResult>`
-  - `contractAddress` (string): 工厂合约地址
-  - `transactionHash` (string): 交易哈希
-  - `blockNumber` (number): 区块号
+  - `contractAddress` (string): Factory contract address
+  - `transactionHash` (string): Transaction hash
+  - `blockNumber` (number): Block number
 
-**示例：**
+**Example:**
 
 ```typescript
 import { DeploymentResult } from '@ddc-market/sdk';
@@ -152,30 +152,30 @@ const result = await membershipManager.deployFactory();
 console.log(`Factory deployed at: ${result.contractAddress}`);
 ```
 
-**说明：**
+**Notes:**
 
-- 工厂合约暂时只支持部署一个地址!
-- 部署前会自动验证网络连接
-- 需要足够的 gas 费用
-- 部署成功后会自动上报工厂地址到后端
+- Factory contract currently only supports deploying one address!
+- Network connection is automatically validated before deployment
+- Sufficient gas fees are required
+- Factory address is automatically reported to backend after successful deployment
 
 ---
 
 ### 2.2 getFactoryAddress()
 
-获取工厂合约地址。
+Get factory contract address.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public getFactoryAddress(): string
 ```
 
-**返回值：**
+**Return Value:**
 
-- `string`: 工厂合约地址（如果未部署则返回空字符串）
+- `string`: Factory contract address (returns empty string if not deployed)
 
-**示例：**
+**Example:**
 
 ```typescript
 const factoryAddress = manager.getFactoryAddress();
@@ -188,68 +188,68 @@ if (factoryAddress) {
 
 ---
 
-## 3. 子合约部署
+## 3. Sub-contract Deployment
 
 ### 3.1 deployContract()
 
-通过工厂合约部署子合约（DDCNFT 或 Membership）。
+Deploy sub-contract (DDCNFT or Membership) via factory contract.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async deployContract(name: string, symbol: string): Promise<DeploymentResult>
 ```
 
-**参数：**
+**Parameters:**
 
-- `name` (string): 合约名称（不能为空）
-- `symbol` (string): 合约符号（不能为空）
+- `name` (string): Contract name (cannot be empty)
+- `symbol` (string): Contract symbol (cannot be empty)
 
-**返回值：**
+**Return Value:**
 
 - `Promise<DeploymentResult>`
-  - `contractAddress` (string): 部署的合约地址
-  - `transactionHash` (string): 交易哈希
-  - `blockNumber` (number): 区块号
+  - `contractAddress` (string): Deployed contract address
+  - `transactionHash` (string): Transaction hash
+  - `blockNumber` (number): Block number
 
-**示例：**
+**Example:**
 
 ```typescript
 import { DeploymentResult } from '@ddc-market/sdk';
 
-// 部署 DDCNFT 合约
+// Deploy DDCNFT contract
 const result: DeploymentResult = await ddcnftManager.deployContract('MyNFT', 'MNFT');
 console.log(`NFT contract deployed at: ${result.contractAddress}`);
 
-// 部署 Membership 合约
+// Deploy Membership contract
 const result = await membershipManager.deployContract('MyDAO', 'MDAO');
 console.log(`Membership contract deployed at: ${result.contractAddress}`);
 ```
 
-**说明：**
+**Notes:**
 
-- 部署前需要先部署工厂合约
-- 部署前会自动验证网络连接
-- 部署成功后会自动设置为当前活动合约
-- 部署的合约地址会自动添加到已部署合约列表
+- Factory contract must be deployed first
+- Network connection is automatically validated before deployment
+- Deployed contract is automatically set as current active contract
+- Deployed contract address is automatically added to deployed contracts list
 
 ---
 
 ### 3.3 getAllDeployedAddresses()
 
-获取所有已部署的合约地址列表。
+Get all deployed contract addresses list.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public getAllDeployedAddresses(): ReadonlyArray<string>
 ```
 
-**返回值：**
+**Return Value:**
 
-- `ReadonlyArray<string>`: 已部署合约地址数组
+- `ReadonlyArray<string>`: Array of deployed contract addresses
 
-**示例：**
+**Example:**
 
 ```typescript
 const contracts = manager.getAllDeployedAddresses();
@@ -261,50 +261,50 @@ contracts.forEach((address, index) => {
 
 ---
 
-## 4. 合约选择与管理
+## 4. Contract Selection and Management
 
 ### 4.1 setContractAddress()
 
-设置当前活动的合约地址。
+Set current active contract address.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public setContractAddress(address: string): void
 ```
 
-**参数：**
+**Parameters:**
 
-- `address` (string): 合约地址
+- `address` (string): Contract address
 
-**示例：**
+**Example:**
 
 ```typescript
 manager.setContractAddress('0x1234...');
 ```
 
-**说明：**
+**Notes:**
 
-- 设置后，后续的合约操作都会使用这个地址
-- 地址会被验证格式
+- After setting, all subsequent contract operations will use this address
+- Address format will be validated
 
 ---
 
 ### 4.2 getContractAddress()
 
-获取当前活动的合约地址。
+Get current active contract address.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public getContractAddress(): string | undefined
 ```
 
-**返回值：**
+**Return Value:**
 
-- `string | undefined`: 当前合约地址，如果未设置则返回 `undefined`
+- `string | undefined`: Current contract address, returns `undefined` if not set
 
-**示例：**
+**Example:**
 
 ```typescript
 const address = manager.getContractAddress();
@@ -317,175 +317,175 @@ if (address) {
 
 ### 4.3 getContract()
 
-获取合约实例（用于直接调用合约方法）。
+Get contract instance (for directly calling contract methods).
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async getContract(contractAddress?: string): Promise<Contract>
 ```
 
-**参数：**
+**Parameters:**
 
-- `contractAddress` (string, 可选): 合约地址，如果不提供则使用当前设置的地址
+- `contractAddress` (string, optional): Contract address, uses currently set address if not provided
 
-**返回值：**
+**Return Value:**
 
-- `Promise<Contract>`: ethers Contract 实例
+- `Promise<Contract>`: ethers Contract instance
 
-**示例：**
+**Example:**
 
 ```typescript
-// 使用当前设置的合约地址
+// Use currently set contract address
 const contract = await manager.getContract();
 
-// 使用指定的合约地址
+// Use specified contract address
 const contract = await manager.getContract('0x1234...');
 ```
 
-**说明：**
+**Notes:**
 
-- 返回的 Contract 实例已连接 signer，可以直接调用合约方法
-- 注意：在 Vue 3 中使用时，需要使用 `toRaw()` 避免 Proxy 问题
+- Returned Contract instance is connected with signer and can directly call contract methods
+- Note: When using in Vue 3, use `toRaw()` to avoid Proxy issues
 
 ---
 
-## 5. DDCNFT 合约操作
+## 5. DDCNFT Contract Operations
 
 ### 5.1 mint()
 
-铸造 NFT。
+Mint NFT.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async mint(tokenId: bigint, keyHash: string): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
-- `tokenId` (bigint): Token ID（必须非零）
-- `keyHash` (string): Key hash（bytes32 格式，0x + 64 个十六进制字符，不能为零值）
+- `tokenId` (bigint): Token ID (must be non-zero)
+- `keyHash` (string): Key hash (bytes32 format, 0x + 64 hex characters, cannot be zero value)
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 交易哈希
+- `Promise<string>`: Transaction hash
 
-**示例：**
+**Example:**
 
 ```typescript
 import { getKeyHash } from '@ddc-market/sdk';
 
-// 生成 keyHash
+// Generate keyHash
 const keyHash = getKeyHash('your-secret-key');
 
-// 铸造 NFT
+// Mint NFT
 const txHash = await ddcnftManager.mint(BigInt(1), keyHash);
 console.log(`Mint transaction: ${txHash}`);
 ```
 
-**说明：**
+**Notes:**
 
-- 需要先设置合约地址
-- keyHash 可以通过 `getKeyHash()` 工具函数生成
-- 铸造的 NFT 会归属于调用者（合约 owner）
+- Contract address must be set first
+- keyHash can be generated using `getKeyHash()` utility function
+- Minted NFT will belong to the caller (contract owner)
 
 ---
 
 ### 5.2 transfer()
 
-转移 NFT。
+Transfer NFT.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async transfer(toHash: string, tokenId: bigint, key: string): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
-- `toHash` (string): 接收方地址 hash（bytes32 格式）
+- `toHash` (string): Recipient address hash (bytes32 format)
 - `tokenId` (bigint): Token ID
-- `key` (string): 转移密钥（不能为空）
+- `key` (string): Transfer key (cannot be empty)
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 交易哈希
+- `Promise<string>`: Transaction hash
 
-**示例：**
+**Example:**
 
 ```typescript
 import { getKeyHash } from '@ddc-market/sdk';
 
-// 生成接收方的 hash
+// Generate recipient hash
 const recipientHash = getKeyHash('recipient-secret-key');
 
-// 转移 NFT
+// Transfer NFT
 const txHash = await ddcnftManager.transfer(recipientHash, BigInt(1), 'your-transfer-key');
 console.log(`Transfer transaction: ${txHash}`);
 ```
 
-**说明：**
+**Notes:**
 
-- 需要先设置合约地址
-- 需要拥有该 token 的所有权
-- key 是转移时使用的密钥
+- Contract address must be set first
+- Must own the token
+- key is the key used for transfer
 
 ---
 
 ### 5.3 destroy()
 
-销毁（销毁）NFT。
+Destroy (burn) NFT.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async destroy(tokenId: bigint, key: string): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
 - `tokenId` (bigint): Token ID
-- `key` (string): 销毁密钥（不能为空）
+- `key` (string): Destroy key (cannot be empty)
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 交易哈希
+- `Promise<string>`: Transaction hash
 
-**示例：**
+**Example:**
 
 ```typescript
 const txHash = await ddcnftManager.destroy(BigInt(1), 'your-destroy-key');
 console.log(`Destroy transaction: ${txHash}`);
 ```
 
-**说明：**
+**Notes:**
 
-- 需要先设置合约地址
-- 需要拥有该 token 的所有权
-- 销毁后 token 将永久消失
+- Contract address must be set first
+- Must own the token
+- Token will be permanently destroyed after this operation
 
 ---
 
 ### 5.4 pause()
 
-暂停合约（仅合约 owner 可调用）。
+Pause contract (only contract owner can call).
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async pause(): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 交易哈希
+- `Promise<string>`: Transaction hash
 
-**示例：**
+**Example:**
 
 ```typescript
 const txHash = await ddcnftManager.pause();
@@ -496,23 +496,23 @@ console.log(`Pause transaction: ${txHash}`);
 
 ### 5.5 unpause()
 
-取消暂停合约（仅合约 owner 可调用）。
+Unpause contract (only contract owner can call).
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async unpause(): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 交易哈希
+- `Promise<string>`: Transaction hash
 
-**示例：**
+**Example:**
 
 ```typescript
 const txHash = await ddcnftManager.unpause();
@@ -521,40 +521,40 @@ console.log(`Unpause transaction: ${txHash}`);
 
 ---
 
-## 6. Membership 合约操作
+## 6. Membership Contract Operations
 
 ### 6.1 mintMembership()
 
-铸造会员代币。
+Mint membership token.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async mintMembership(tokenId: bigint, addressHash: string): Promise<MintResult>
 ```
 
-**参数：**
+**Parameters:**
 
 - `tokenId` (bigint): Token ID
-- `addressHash` (string): 会员地址 hash（bytes32 格式，不能为零值）
+- `addressHash` (string): Member address hash (bytes32 format, cannot be zero value)
 
-**返回值：**
+**Return Value:**
 
 - `Promise<MintResult>`
   - `tokenId` (bigint): Token ID
-  - `to` (string): 接收方地址 hash
-  - `transactionHash` (string): 交易哈希
-  - `blockNumber` (number): 区块号
+  - `to` (string): Recipient address hash
+  - `transactionHash` (string): Transaction hash
+  - `blockNumber` (number): Block number
 
-**示例：**
+**Example:**
 
 ```typescript
 import { getKeyHash } from '@ddc-market/sdk';
 
-// 生成会员地址 hash
+// Generate member address hash
 const memberHash = getKeyHash('member-address-or-key');
 
-// 铸造会员代币
+// Mint membership token
 const result = await membershipManager.mintMembership(BigInt(1), memberHash);
 console.log(`Token minted to: ${result.to}`);
 console.log(`Transaction: ${result.transactionHash}`);
@@ -564,28 +564,28 @@ console.log(`Transaction: ${result.transactionHash}`);
 
 ### 6.2 destroyMembership()
 
-销毁（兑换）会员代币。
+Destroy (redeem) membership token.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async destroyMembership(tokenId: bigint, addressHash: string): Promise<DestroyResult>
 ```
 
-**参数：**
+**Parameters:**
 
 - `tokenId` (bigint): Token ID
-- `addressHash` (string): 会员地址 hash（bytes32 格式）
+- `addressHash` (string): Member address hash (bytes32 format)
 
-**返回值：**
+**Return Value:**
 
 - `Promise<DestroyResult>`
   - `tokenId` (bigint): Token ID
-  - `from` (string): 原拥有者地址 hash
-  - `transactionHash` (string): 交易哈希
-  - `blockNumber` (number): 区块号
+  - `from` (string): Previous owner address hash
+  - `transactionHash` (string): Transaction hash
+  - `blockNumber` (number): Block number
 
-**示例：**
+**Example:**
 
 ```typescript
 import { getKeyHash } from '@ddc-market/sdk';
@@ -599,55 +599,55 @@ console.log(`Token destroyed. Previous owner: ${result.from}`);
 
 ### 6.3 createSnapshot()
 
-创建会员快照。
+Create membership snapshot.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async createSnapshot(): Promise<bigint>
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `Promise<bigint>`: 快照 ID
+- `Promise<bigint>`: Snapshot ID
 
-**示例：**
+**Example:**
 
 ```typescript
 const snapshotId = await membershipManager.createSnapshot();
 console.log(`Snapshot created with ID: ${snapshotId}`);
 ```
 
-**说明：**
+**Notes:**
 
-- 快照会记录当前所有会员的地址 hash
-- 快照 ID 从 1 开始递增
+- Snapshot records all current member address hashes
+- Snapshot ID starts from 1 and increments
 
 ---
 
 ### 6.4 getMemberSnapshot()
 
-获取快照中的会员列表。
+Get member list in snapshot.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async getMemberSnapshot(snapshotId: bigint): Promise<string[]>
 ```
 
-**参数：**
+**Parameters:**
 
-- `snapshotId` (bigint): 快照 ID
+- `snapshotId` (bigint): Snapshot ID
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string[]>`: 会员地址 hash 数组
+- `Promise<string[]>`: Array of member address hashes
 
-**示例：**
+**Example:**
 
 ```typescript
 const members = await membershipManager.getMemberSnapshot(BigInt(1));
@@ -657,31 +657,31 @@ members.forEach((member, index) => {
 });
 ```
 
-**说明：**
+**Notes:**
 
-- 如果快照不存在，返回空数组
+- Returns empty array if snapshot does not exist
 
 ---
 
 ### 6.5 getLatestSnapshotId()
 
-获取最新快照 ID。
+Get latest snapshot ID.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async getLatestSnapshotId(): Promise<bigint>
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `Promise<bigint>`: 最新快照 ID（如果没有快照则返回 0）
+- `Promise<bigint>`: Latest snapshot ID (returns 0 if no snapshots exist)
 
-**示例：**
+**Example:**
 
 ```typescript
 const latestId = await membershipManager.getLatestSnapshotId();
@@ -692,24 +692,24 @@ console.log(`Latest snapshot ID: ${latestId}`);
 
 ### 6.6 isMemberInSnapshot()
 
-检查会员是否在快照中。
+Check if member is in snapshot.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async isMemberInSnapshot(snapshotId: bigint, addressHash: string): Promise<boolean>
 ```
 
-**参数：**
+**Parameters:**
 
-- `snapshotId` (bigint): 快照 ID
-- `addressHash` (string): 会员地址 hash
+- `snapshotId` (bigint): Snapshot ID
+- `addressHash` (string): Member address hash
 
-**返回值：**
+**Return Value:**
 
-- `Promise<boolean>`: 是否在快照中
+- `Promise<boolean>`: Whether member is in snapshot
 
-**示例：**
+**Example:**
 
 ```typescript
 import { getKeyHash } from '@ddc-market/sdk';
@@ -723,23 +723,23 @@ console.log(`Is member: ${isMember}`);
 
 ### 6.7 getTotalSupply()
 
-获取会员代币总供应量。
+Get total supply of membership tokens.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async getTotalSupply(): Promise<bigint>
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `Promise<bigint>`: 总供应量
+- `Promise<bigint>`: Total supply
 
-**示例：**
+**Example:**
 
 ```typescript
 const supply = await membershipManager.getTotalSupply();
@@ -748,27 +748,27 @@ console.log(`Total supply: ${supply}`);
 
 ---
 
-## 7. 通用合约操作
+## 7. Common Contract Operations
 
 ### 7.1 getName()
 
-获取合约名称。
+Get contract name.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async getName(): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 合约名称
+- `Promise<string>`: Contract name
 
-**示例：**
+**Example:**
 
 ```typescript
 const name = await manager.getName();
@@ -779,23 +779,23 @@ console.log(`Contract name: ${name}`);
 
 ### 7.2 getSymbol()
 
-获取合约符号。
+Get contract symbol.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async getSymbol(): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 合约符号
+- `Promise<string>`: Contract symbol
 
-**示例：**
+**Example:**
 
 ```typescript
 const symbol = await manager.getSymbol();
@@ -806,23 +806,23 @@ console.log(`Contract symbol: ${symbol}`);
 
 ### 7.3 getOwner()
 
-获取合约拥有者地址。
+Get contract owner address.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async getOwner(): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 拥有者地址
+- `Promise<string>`: Owner address
 
-**示例：**
+**Example:**
 
 ```typescript
 const owner = await manager.getOwner();
@@ -833,23 +833,23 @@ console.log(`Contract owner: ${owner}`);
 
 ### 7.4 getOwnerOf()
 
-获取 Token 的拥有者（hash）。
+Get token owner (hash).
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async getOwnerOf(tokenId: bigint): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
 - `tokenId` (bigint): Token ID
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 拥有者地址 hash（bytes32）
+- `Promise<string>`: Owner address hash (bytes32)
 
-**示例：**
+**Example:**
 
 ```typescript
 const ownerHash = await manager.getOwnerOf(BigInt(1));
@@ -860,85 +860,85 @@ console.log(`Token owner hash: ${ownerHash}`);
 
 ### 7.5 getTokenURI()
 
-获取 Token URI。
+Get Token URI.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async getTokenURI(tokenId: bigint): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
 - `tokenId` (bigint): Token ID
 
-**返回值：**
+**Return Value:**
 
 - `Promise<string>`: Token URI
 
-**示例：**
+**Example:**
 
 ```typescript
 const uri = await manager.getTokenURI(BigInt(1));
 console.log(`Token URI: ${uri}`);
 ```
 
-**说明：**
+**Notes:**
 
-- 注意: DDC 默认提供 OSS 服务存储 Metadata, 是 OSS 的根服务域名
-- 有隐私需求需要部署完合约后, 手动设置 Metadata URI !
+- Note: DDC provides OSS service for storing Metadata by default, which is the root service domain of OSS
+- If privacy is required, manually set Metadata URI after contract deployment!
 
 ---
 
 ### 7.6 setBaseURI()
 
-设置基础 URI（仅合约 owner 可调用）。
+Set base URI (only contract owner can call).
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async setBaseURI(baseURI: string): Promise<void>
 ```
 
-**参数：**
+**Parameters:**
 
-- `baseURI` (string): 基础 URI
+- `baseURI` (string): Base URI
 
-**返回值：**
+**Return Value:**
 
 - `Promise<void>`
 
-**示例：**
+**Example:**
 
 ```typescript
 await manager.setBaseURI(`https://api.example.com/metadata/${contractAddress}/`);
 ```
 
-**说明：**
+**Notes:**
 
-- 注意: 设置路径规则是: OSS 的根服务域名 + 当前合约地址 (Metadata 信息存放的文件夹目录名)
+- Note: Path rule is: OSS root service domain + current contract address (folder directory name where Metadata is stored)
 
 ---
 
 ### 7.7 transferOwnership()
 
-转移合约所有权（仅合约 owner 可调用）。
+Transfer contract ownership (only contract owner can call).
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public async transferOwnership(newOwner: string): Promise<string>
 ```
 
-**参数：**
+**Parameters:**
 
-- `newOwner` (string): 新拥有者地址
+- `newOwner` (string): New owner address
 
-**返回值：**
+**Return Value:**
 
-- `Promise<string>`: 交易哈希
+- `Promise<string>`: Transaction hash
 
-**示例：**
+**Example:**
 
 ```typescript
 const txHash = await manager.transferOwnership('0x...');
@@ -949,23 +949,23 @@ console.log(`Ownership transferred: ${txHash}`);
 
 ### 7.8 getDefaultMetadataURL()
 
-获取默认元数据 URL (DDC 默认提供的 URI)。
+Get default metadata URL (DDC default provided URI).
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public getDefaultMetadataURL(): string
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `string`: 默认元数据 URL
+- `string`: Default metadata URL
 
-**示例：**
+**Example:**
 
 ```typescript
 const metadataUrl = manager.getDefaultMetadataURL();
@@ -976,23 +976,23 @@ console.log(`Default metadata URL: ${metadataUrl}`);
 
 ### 7.9 getNetworkConfig()
 
-获取 DDC Chain 网络配置。
+Get DDC Chain network configuration.
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 public getNetworkConfig(): DDCChainConfig
 ```
 
-**参数：**
+**Parameters:**
 
-- 无
+- None
 
-**返回值：**
+**Return Value:**
 
-- `DDCChainConfig`: 网络配置对象
+- `DDCChainConfig`: Network configuration object
 
-**示例：**
+**Example:**
 
 ```typescript
 const network = manager.getNetworkConfig();
@@ -1003,186 +1003,186 @@ console.log(`RPC URL: ${network.rpc_url}`);
 
 ---
 
-## 8. 工具函数
+## 8. Utility Functions
 
 ### 8.1 getKeyHash()
 
-生成 key hash（用于 mint、transfer 等操作）。
+Generate key hash (for mint, transfer, etc. operations).
 
-**方法签名：**
+**Method Signature:**
 
 ```typescript
 export function getKeyHash(key: string): string;
 ```
 
-**参数：**
+**Parameters:**
 
-- `key` (string): 密钥字符串
+- `key` (string): Key string
 
-**返回值：**
+**Return Value:**
 
-- `string`: bytes32 格式的 hash（0x + 64 个十六进制字符）
+- `string`: Hash in bytes32 format (0x + 64 hex characters)
 
-**示例：**
+**Example:**
 
 ```typescript
 import { getKeyHash } from '@ddc-market/sdk';
 
 const keyHash = getKeyHash('your-secret-key');
 console.log(`Key hash: ${keyHash}`);
-// 输出: 0x1234... (64 个十六进制字符)
+// Output: 0x1234... (64 hex characters)
 ```
 
-**说明：**
+**Notes:**
 
-- 使用 keccak256 算法生成 hash
-- 返回的 hash 可以直接用于合约操作
+- Uses keccak256 algorithm to generate hash
+- Returned hash can be directly used for contract operations
 
 ---
 
-## 完整使用流程示例
+## Complete Usage Flow Examples
 
-### DDCNFT 完整流程
+### DDCNFT Complete Flow
 
 ```typescript
 import { DDCNFTManager, getKeyHash } from '@ddc-market/sdk';
 import { BrowserProvider } from 'ethers';
 
-// 1. 初始化
+// 1. Initialize
 const manager = await DDCNFTManager.init({
   walletAddress: '0x...',
   provider: new BrowserProvider(window.ethereum),
   debug: true,
 });
 
-// 2. 检查工厂合约
+// 2. Check factory contract
 let factoryAddress = manager.getFactoryAddress();
 if (!factoryAddress) {
-  // 3. 部署工厂合约
+  // 3. Deploy factory contract
   const factoryResult = await manager.deployFactory();
   factoryAddress = factoryResult.contractAddress;
   console.log(`Factory deployed: ${factoryAddress}`);
 }
 
-// 4. 部署 NFT 合约
+// 4. Deploy NFT contract
 const nftResult = await manager.deployContract('MyNFT', 'MNFT');
 const nftAddress = nftResult.contractAddress;
 console.log(`NFT contract deployed: ${nftAddress}`);
 
-// 5. 设置当前合约（如果部署后未自动设置）
+// 5. Set current contract (if not automatically set after deployment)
 manager.setContractAddress(nftAddress);
 
-// 6. 铸造 NFT
+// 6. Mint NFT
 const keyHash = getKeyHash('my-secret-key');
 const mintTx = await manager.mint(BigInt(1), keyHash);
 console.log(`Mint transaction: ${mintTx}`);
 
-// 7. 查询 NFT 信息
+// 7. Query NFT information
 const name = await manager.getName();
 const symbol = await manager.getSymbol();
 const ownerHash = await manager.getOwnerOf(BigInt(1));
 const tokenURI = await manager.getTokenURI(BigInt(1));
 
-// 8. 转移 NFT
+// 8. Transfer NFT
 const recipientHash = getKeyHash('recipient-secret-key');
 const transferTx = await manager.transfer(recipientHash, BigInt(1), 'transfer-key');
 console.log(`Transfer transaction: ${transferTx}`);
 
-// 9. 销毁 NFT
+// 9. Destroy NFT
 const destroyTx = await manager.destroy(BigInt(1), 'destroy-key');
 console.log(`Destroy transaction: ${destroyTx}`);
 ```
 
-### Membership 完整流程
+### Membership Complete Flow
 
 ```typescript
 import { MembershipManager, getKeyHash } from '@ddc-market/sdk';
 import { BrowserProvider } from 'ethers';
 
-// 1. 初始化
+// 1. Initialize
 const manager = await MembershipManager.init({
   walletAddress: '0x...',
   provider: new BrowserProvider(window.ethereum),
   debug: true,
 });
 
-// 2. 检查工厂合约
+// 2. Check factory contract
 let factoryAddress = manager.getFactoryAddress();
 if (!factoryAddress) {
-  // 3. 部署工厂合约
+  // 3. Deploy factory contract
   const factoryResult = await manager.deployFactory();
   factoryAddress = factoryResult.contractAddress;
 }
 
-// 4. 部署 Membership 合约
+// 4. Deploy Membership contract
 const membershipResult = await manager.deployContract('MyDAO', 'MDAO');
 const membershipAddress = membershipResult.contractAddress;
 manager.setContractAddress(membershipAddress);
 
-// 5. 铸造会员代币
+// 5. Mint membership token
 const memberHash = getKeyHash('member-address');
 const mintResult = await manager.mintMembership(BigInt(1), memberHash);
 console.log(`Token minted to: ${mintResult.to}`);
 
-// 6. 创建快照
+// 6. Create snapshot
 const snapshotId = await manager.createSnapshot();
 console.log(`Snapshot created: ${snapshotId}`);
 
-// 7. 查询快照成员
+// 7. Query snapshot members
 const members = await manager.getMemberSnapshot(snapshotId);
 console.log(`Snapshot has ${members.length} members`);
 
-// 8. 检查会员是否在快照中
+// 8. Check if member is in snapshot
 const isMember = await manager.isMemberInSnapshot(snapshotId, memberHash);
 console.log(`Is member: ${isMember}`);
 
-// 9. 查询总供应量
+// 9. Query total supply
 const supply = await manager.getTotalSupply();
 console.log(`Total supply: ${supply}`);
 
-// 10. 销毁会员代币
+// 10. Destroy membership token
 const destroyResult = await manager.destroyMembership(BigInt(1), memberHash);
 console.log(`Token destroyed`);
 ```
 
 ---
 
-## 注意事项
+## Important Notes
 
-### Vue 3 使用注意事项
+### Vue 3 Usage Notes
 
-在 Vue 3 中使用 SDK 时，由于 Vue 的响应式 Proxy 系统，直接调用 Manager 方法可能会导致 `TypeError: Receiver must be an instance of class anonymous` 错误。
+When using SDK in Vue 3, due to Vue's reactive Proxy system, directly calling Manager methods may cause `TypeError: Receiver must be an instance of class anonymous` error.
 
-**解决方案：使用 `toRaw()`**
+**Solution: Use `toRaw()`**
 
 ```typescript
 import { toRaw } from 'vue';
 
-// ❌ 错误方式
+// ❌ Wrong way
 await nftManager.value.mint(BigInt(1), keyHash);
 
-// ✅ 正确方式
+// ✅ Correct way
 const rawManager = toRaw(nftManager.value);
 await rawManager.mint(BigInt(1), keyHash);
 ```
 
-### Provider 模式选择
+### Provider Mode Selection
 
-**BrowserProvider 模式：**
+**BrowserProvider Mode:**
 
-- 适用于浏览器钱包（MetaMask、OKX 等）
-- 用户需要先连接钱包
-- 交易需要用户在钱包中确认
+- Suitable for browser wallets (MetaMask, OKX, etc.)
+- Users need to connect wallet first
+- Transactions require user confirmation in wallet
 
-**JsonRpcProvider 模式：**
+**JsonRpcProvider Mode:**
 
-- 适用于后端服务或需要自动化交易的场景
-- 需要提供私钥
-- 交易自动签名，无需用户确认
+- Suitable for backend services or scenarios requiring automated transactions
+- Requires providing private key
+- Transactions are automatically signed, no user confirmation needed
 
-### 错误处理
+### Error Handling
 
-所有方法都可能抛出 `SDKError`，建议使用 try-catch 处理：
+All methods may throw `SDKError`, it's recommended to use try-catch:
 
 ```typescript
 try {
@@ -1198,16 +1198,16 @@ try {
 }
 ```
 
-### 网络验证
+### Network Validation
 
-SDK 会在关键操作前自动验证网络连接：
+SDK automatically validates network connection before critical operations:
 
-- BrowserProvider：会自动切换网络（如果配置了）
-- JsonRpcProvider：直接信任配置的网络（因为是从 API 获取的）
+- BrowserProvider: Automatically switches network (if configured)
+- JsonRpcProvider: Directly trusts configured network (because it's fetched from API)
 
 ---
 
-## 类型定义
+## Type Definitions
 
 ### ManagerParams
 
@@ -1262,13 +1262,13 @@ interface DestroyResult {
 
 ---
 
-## 常见错误码
+## Common Error Codes
 
-- `NETWORK_CONFIG_NOT_AVAILABLE`: 网络配置不可用
-- `PROVIDER_NOT_AVAILABLE`: Provider 不可用
-- `NO_CONTRACT_ADDRESS`: 未设置合约地址
-- `CONTRACT_NOT_DEPLOYED`: 合约未部署
-- `INSUFFICIENT_FUNDS`: 余额不足
-- `USER_REJECTED`: 用户拒绝交易
-- `CONTRACT_CALL_FAILED`: 合约调用失败
-- `INVALID_PARAMETER`: 参数无效
+- `NETWORK_CONFIG_NOT_AVAILABLE`: Network configuration not available
+- `PROVIDER_NOT_AVAILABLE`: Provider not available
+- `NO_CONTRACT_ADDRESS`: Contract address not set
+- `CONTRACT_NOT_DEPLOYED`: Contract not deployed
+- `INSUFFICIENT_FUNDS`: Insufficient funds
+- `USER_REJECTED`: User rejected transaction
+- `CONTRACT_CALL_FAILED`: Contract call failed
+- `INVALID_PARAMETER`: Invalid parameter
