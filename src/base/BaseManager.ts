@@ -4,19 +4,25 @@ import {
   ContractFactory,
   Provider,
   BrowserProvider,
+  JsonRpcProvider,
   getAddress,
   Interface,
 } from 'ethers';
-import type { DeploymentResult, DDCChainConfig, ManagerParams, ManagerConfig } from '../types';
+import type {
+  DeploymentResult,
+  DDCChainConfig,
+  ManagerParams,
+  ManagerConfig,
+  SignerConfig,
+} from '../types';
 import { SDKError } from '../types';
+import { createContract, validateAddress, ensureCorrectNetwork, Logger, getSigner } from '../utils';
 import {
-  createContract,
-  validateAddress,
-  ensureCorrectNetwork,
-  Logger,
-  getSigner,
-} from '../utils';
-import { getDDCConfig, setContractAddress, setFactoryAddress, transferContractOwner } from '../service/api';
+  getDDCConfig,
+  setContractAddress,
+  setFactoryAddress,
+  transferContractOwner,
+} from '../service/api';
 import { addAddress } from '../utils/contract';
 import { ensureContractDeployed } from './decorators';
 
@@ -30,6 +36,7 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
   // ==================== Common Properties ====================
 
   protected provider?: Provider;
+  protected signerConfig?: SignerConfig;
   protected logger: Logger;
   protected factoryContract?: Contract;
   protected factoryAddress?: string;
@@ -62,14 +69,16 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
   constructor(config: ManagerConfig) {
     this.logger = new Logger(config?.debug || false);
     if (config?.provider && config?.network) {
-      const { provider, network } = config;
+      const { provider, network, signerConfig } = config;
       this.provider = provider;
+      this.signerConfig = signerConfig;
       this.networkConfig = network;
 
       this.logger.info(`Initializing ${this.getManagerName()}`, {
         hasFactory: !!config.factoryAddress,
         network: network.chain_name || 'not specified',
         chain_id: network.chain_id,
+        providerType: provider.constructor.name,
       });
     }
   }
@@ -118,12 +127,43 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
       return;
     }
 
+    if (!this.provider) {
+      this.logger.warn('No provider available, skipping network validation');
+      return;
+    }
+
     try {
-      await ensureCorrectNetwork(
-        this.provider as BrowserProvider,
-        this.networkConfig,
-        this.logger.debug
-      );
+      // For BrowserProvider, use ensureCorrectNetwork which can switch chains
+      if (this.provider instanceof BrowserProvider) {
+        await ensureCorrectNetwork(this.provider, this.networkConfig, this.logger.debug);
+      } else if (this.provider instanceof JsonRpcProvider) {
+        // JsonRpcProvider is constructed by SDK via resolveProvider -> createJsonRpcProvider
+        // with chainId from networkConfig.chain_id and staticNetwork: true
+        // Since chainId comes from networkConfig (trusted source used to construct the provider),
+        // we trust it directly - no need to validate
+        this.logger.info(
+          `JsonRpcProvider network trusted: chainId ${this.networkConfig.chain_id} (SDK constructed)`
+        );
+      } else {
+        // For other provider types, try to validate network
+        try {
+          const network = await this.provider.getNetwork();
+          const expectedChainId = BigInt(this.networkConfig.chain_id);
+          if (network.chainId !== expectedChainId) {
+            this.logger.warn(
+              `Network mismatch: Connected to chain ${network.chainId}, expected ${expectedChainId}`
+            );
+          } else {
+            this.logger.info(`Network validated: chainId ${network.chainId}`);
+          }
+        } catch (networkError) {
+          // If getNetwork() fails, log warning but continue
+          this.logger.warn(
+            `Could not validate network via getNetwork(), continuing with networkConfig chainId ${this.networkConfig.chain_id}`,
+            networkError
+          );
+        }
+      }
     } catch (error) {
       this.logger.error('Network validation failed:', error);
       throw error;
@@ -183,7 +223,7 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
         throw new SDKError('Factory bytecode not found in ABI', 'MISSING_BYTECODE');
       }
 
-      const signer = await getSigner(this.provider as BrowserProvider);
+      const signer = await getSigner(this.provider!, this.signerConfig);
       const factory = new ContractFactory(this.FACTORY_ABI, bytecode, signer);
 
       this.logger.info(`Deploying ${this.getManagerName()} Factory contract...`);
@@ -276,8 +316,11 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
       deployedAddress = getAddress(deployedAddress);
       addAddress(this.deployedContracts, deployedAddress);
 
-      const signer = await getSigner(this.provider as BrowserProvider);
-      const address = await signer!.getAddress()!;
+      if (!this.provider) {
+        throw new SDKError('Provider is not available', 'PROVIDER_NOT_AVAILABLE');
+      }
+      const signer = await getSigner(this.provider, this.signerConfig);
+      const address = await signer.getAddress();
 
       await setContractAddress({
         address: address,
@@ -322,8 +365,11 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
     }
 
     validateAddress(address, `${this.getManagerName()} contract address`);
-    const signer = await getSigner(this.provider as BrowserProvider);
-    return createContract(address, this.CONTRACT_ABI, signer!);
+    if (!this.provider) {
+      throw new SDKError('Provider is not available', 'PROVIDER_NOT_AVAILABLE');
+    }
+    const signer = await getSigner(this.provider, this.signerConfig);
+    return createContract(address, this.CONTRACT_ABI, signer);
   }
 
   /**
@@ -342,14 +388,17 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
       }
 
       // set contract owner to new owner
-      const signer = await getSigner(this.provider as BrowserProvider);
+      if (!this.provider) {
+        throw new SDKError('Provider is not available', 'PROVIDER_NOT_AVAILABLE');
+      }
+      const signer = await getSigner(this.provider, this.signerConfig);
       await transferContractOwner({
-        address: await signer!.getAddress(),
+        address: await signer.getAddress(),
         contract: this.getContractAddress()!,
         type: this.CONTRACT_TYPE,
         ownerAddress: newOwner,
       });
-      
+
       return receipt.hash;
     } catch (error: any) {
       if (error instanceof SDKError) throw error;

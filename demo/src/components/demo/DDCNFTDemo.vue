@@ -16,63 +16,66 @@
  * - Each step has detailed log output
  */
 
-import { ref, computed } from 'vue'
-import { DDCNFTManager, getKeyHash } from '@ddc-market/sdk'
-import { useWalletStore } from '../../stores/wallet'
+import { ref, computed } from 'vue';
+import { DDCNFTManager, getKeyHash } from '@ddc-market/sdk';
+import { useWalletStore } from '../../stores/wallet';
 
 // ============================================================================
 // Store
 // ============================================================================
-const walletStore = useWalletStore()
+const walletStore = useWalletStore();
 
 // ============================================================================
 // State Management
 // ============================================================================
 // Manager instance
-const nftManager = ref<DDCNFTManager | null>(null)
+const nftManager = ref<DDCNFTManager | null>(null);
 
 // Contract addresses
-const factoryAddress = ref<string>('')
-const nftContractAddress = ref<string>('')
-const deployedContracts = ref<string[]>([]) // 所有已部署的合约列表
-const selectedContract = ref<string>('') // 用户选择的合约地址
+const factoryAddress = ref<string>('');
+const nftContractAddress = ref<string>('');
+const deployedContracts = ref<string[]>([]); // 所有已部署的合约列表
+const selectedContract = ref<string>(''); // 用户选择的合约地址
 
 // Test data
-const nftName = ref('TestNFT')
-const nftSymbol = ref('TNFT')
-const mintTokenId = ref('1')
-const mintKeyHash = ref('') // Test keyHash
-const transferToHash = ref('') // Transfer target hash (bytes32)
-const transferTokenId = ref('1') // Token ID for transfer
+const nftName = ref('TestNFT');
+const nftSymbol = ref('TNFT');
+const mintTokenId = ref('1');
+const mintKeyHash = ref(''); // Test keyHash
+const transferToHash = ref(''); // Transfer target hash (bytes32)
+const transferTokenId = ref('1'); // Token ID for transfer
 // Input Your Wallet Private Key Here !!!
 // Input Your Transfer Target Private Key of Wallet you want to transfer to Here !!!
-const destroyKey = ref(privateKey.value) // Destroy key
-const queryTokenId = ref('1') // Token ID for querying URI
-const tokenURI = ref('') // Token URI result
-const baseURI = ref('') // Base URI for NFT metadata
-const newOwnerAddress = ref('') // New owner address for transferOwnership
-const destroyTokenId = ref('1') // Token ID to destroy
+const privateKey = ref(walletStore.walletPrivateKey);
+const destroyKey = ref(privateKey.value); // Destroy key
+const queryTokenId = ref('1'); // Token ID for querying URI
+const tokenURI = ref(''); // Token URI result
+const baseURI = ref(''); // Base URI for NFT metadata
+const newOwnerAddress = ref(''); // New owner address for transferOwnership
+const destroyTokenId = ref('1'); // Token ID to destroy
 const ddcNftResult = ref<{
-  contractAddress: string
-  transactionHash: string
-  blockNumber?: number
-} | null>(null)
+  contractAddress: string;
+  transactionHash: string;
+  blockNumber?: number;
+} | null>(null);
 
 // State management
-const loading = ref(false)
-const currentStep = ref(0)
-const logs = ref<string[]>([])
+const loading = ref(false);
+const currentStep = ref(0);
+const logs = ref<string[]>([]);
 
 // ============================================================================
 // Computed
 // ============================================================================
 
-const isConnected = computed(() => walletStore.walletAddress !== '')
-const canInitialize = computed(() => isConnected.value && currentStep.value === 0)
+const isConnected = computed(() => walletStore.walletAddress !== '');
+const canInitialize = computed(() => isConnected.value && currentStep.value === 0);
 // const canDeployFactory = computed(() => currentStep.value === 1)
-const canDeployNFT = computed(() => factoryAddress.value !== '')
-const canMint = computed(() => nftContractAddress.value !== '')
-const canTransfer = computed(() => currentStep.value >= 3 && transferToHash.value !== '' && transferTokenId.value !== '')
+const canDeployNFT = computed(() => factoryAddress.value !== '');
+const canMint = computed(() => nftContractAddress.value !== '');
+const canTransfer = computed(
+  () => currentStep.value >= 3 && transferToHash.value !== '' && transferTokenId.value !== ''
+);
 
 // ============================================================================
 // Methods
@@ -82,9 +85,9 @@ const canTransfer = computed(() => currentStep.value >= 3 && transferToHash.valu
  * Add log entry
  */
 function addLog(message: string, type: 'info' | 'success' | 'error' = 'info') {
-  const timestamp = new Date().toLocaleTimeString()
-  const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'
-  logs.value.unshift(`[${timestamp}] ${prefix} ${message}`)
+  const timestamp = new Date().toLocaleTimeString();
+  const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+  logs.value.unshift(`[${timestamp}] ${prefix} ${message}`);
 }
 
 /**
@@ -92,53 +95,53 @@ function addLog(message: string, type: 'info' | 'success' | 'error' = 'info') {
  */
 async function initializeManager() {
   if (!walletStore.provider || !walletStore.walletAddress) {
-    addLog('Please connect wallet first', 'error')
-    return
+    addLog('Please connect wallet first', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog('Initializing DDCNFTManager...')
+    loading.value = true;
+    addLog('Initializing DDCNFTManager...');
 
     // Initialize Manager
     // Note: walletStore.signer is already wrapped with markRaw in store, so no need for toRaw here
     nftManager.value = await DDCNFTManager.init({
       walletAddress: walletStore.walletAddress,
       provider: walletStore.provider,
-      debug: true
-    })
+      debug: true,
+    });
 
-    factoryAddress.value = nftManager.value.getFactoryAddress()
+    factoryAddress.value = nftManager.value.getFactoryAddress();
 
     // 获取所有已部署的合约
-    const contracts = nftManager.value.getAllDeployedAddresses()
-    deployedContracts.value = [...contracts]
-    addLog(`Found ${contracts.length} deployed contracts`, 'info')
+    const contracts = nftManager.value.getAllDeployedAddresses();
+    deployedContracts.value = [...contracts];
+    addLog(`Found ${contracts.length} deployed contracts`, 'info');
 
     // 获取默认的 metadata URL
     try {
-      const defaultMetadataUrl = nftManager.value.getDefaultMetadataURL()
+      const defaultMetadataUrl = nftManager.value.getDefaultMetadataURL();
       if (defaultMetadataUrl) {
-        baseURI.value = defaultMetadataUrl
-        addLog(`Default Base URI loaded: ${defaultMetadataUrl}`, 'info')
+        baseURI.value = defaultMetadataUrl;
+        addLog(`Default Base URI loaded: ${defaultMetadataUrl}`, 'info');
       }
     } catch (error) {
       // 如果没有默认 URL，使用预设值
-      addLog('No default metadata URL found, using default value', 'info')
+      addLog('No default metadata URL found, using default value', 'info');
     }
 
-    addLog('DDCNFTManager initialized successfully', 'success')
+    addLog('DDCNFTManager initialized successfully', 'success');
 
     if (factoryAddress.value) {
-      currentStep.value = 2
-    }  else {
-      currentStep.value = 1
+      currentStep.value = 2;
+    } else {
+      currentStep.value = 1;
     }
   } catch (error: any) {
-    addLog(`Initialization failed: ${error.message}`, 'error')
-    console.error('Initialize error:', error)
+    addLog(`Initialization failed: ${error.message}`, 'error');
+    console.error('Initialize error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -147,29 +150,29 @@ async function initializeManager() {
  */
 async function deployFactory() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
   try {
-    loading.value = true
-    addLog('Deploying DDCNFTFactory contract...')
-    addLog('This may take a few seconds, waiting for transaction confirmation...')
+    loading.value = true;
+    addLog('Deploying DDCNFTFactory contract...');
+    addLog('This may take a few seconds, waiting for transaction confirmation...');
 
     // Deploy factory contract
-    const result = await nftManager.value.deployDDCFactory()
+    const result = await nftManager.value.deployDDCFactory();
 
-    factoryAddress.value = result.contractAddress
-    addLog(`Factory contract deployed successfully!`, 'success')
-    addLog(`Factory Address: ${result.contractAddress}`)
-    addLog(`Transaction Hash: ${result.transactionHash}`)
-    addLog(`Block Number: ${result.blockNumber}`)
+    factoryAddress.value = result.contractAddress;
+    addLog(`Factory contract deployed successfully!`, 'success');
+    addLog(`Factory Address: ${result.contractAddress}`);
+    addLog(`Transaction Hash: ${result.transactionHash}`);
+    addLog(`Block Number: ${result.blockNumber}`);
 
-    currentStep.value = 2
+    currentStep.value = 2;
   } catch (error: any) {
-    addLog(`Factory deployment failed: ${error.message}`, 'error')
-    console.error('Deploy factory error:', error)
+    addLog(`Factory deployment failed: ${error.message}`, 'error');
+    console.error('Deploy factory error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -178,35 +181,35 @@ async function deployFactory() {
  */
 async function deployNFTContract() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   if (!nftName.value || !nftSymbol.value) {
-    addLog('Please enter NFT name and symbol', 'error')
-    return
+    addLog('Please enter NFT name and symbol', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog(`Deploying DDCNFT contract: ${nftName.value} (${nftSymbol.value})...`)
+    loading.value = true;
+    addLog(`Deploying DDCNFT contract: ${nftName.value} (${nftSymbol.value})...`);
 
     // Deploy NFT contract via factory
-    const result = await nftManager.value.deployDDCNFT(nftName.value, nftSymbol.value)
+    const result = await nftManager.value.deployDDCNFT(nftName.value, nftSymbol.value);
 
-    nftContractAddress.value = result.contractAddress
-    ddcNftResult.value = result
-    addLog(`DDCNFT contract deployed successfully!`, 'success')
-    addLog(`Contract Address: ${result.contractAddress}`)
-    addLog(`Transaction Hash: ${result.transactionHash}`)
-    addLog(`Block Number: ${result.blockNumber}`)
+    nftContractAddress.value = result.contractAddress;
+    ddcNftResult.value = result;
+    addLog(`DDCNFT contract deployed successfully!`, 'success');
+    addLog(`Contract Address: ${result.contractAddress}`);
+    addLog(`Transaction Hash: ${result.transactionHash}`);
+    addLog(`Block Number: ${result.blockNumber}`);
 
-    currentStep.value = 3
+    currentStep.value = 3;
   } catch (error: any) {
-    addLog(`NFT contract deployment failed: ${error.message}`, 'error')
-    console.error('Deploy NFT error:', error)
+    addLog(`NFT contract deployment failed: ${error.message}`, 'error');
+    console.error('Deploy NFT error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -215,33 +218,33 @@ async function deployNFTContract() {
  */
 async function mintNFT() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   if (!mintTokenId.value) {
-    addLog('Please enter Token ID', 'error')
-    return
+    addLog('Please enter Token ID', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog(`Minting NFT #${mintTokenId.value}...`)
+    loading.value = true;
+    addLog(`Minting NFT #${mintTokenId.value}...`);
 
-    const tokenId = BigInt(mintTokenId.value)
-    mintKeyHash.value = await getKeyHash(privateKey.value)
-    const txHash = await nftManager.value.mint(tokenId, mintKeyHash.value)
+    const tokenId = BigInt(mintTokenId.value);
+    mintKeyHash.value = await getKeyHash(privateKey.value);
+    const txHash = await nftManager.value.mint(tokenId, mintKeyHash.value);
 
-    addLog(`NFT minted successfully!`, 'success')
-    addLog(`Token ID: ${mintTokenId.value}`)
-    addLog(`Transaction Hash: ${txHash}`)
+    addLog(`NFT minted successfully!`, 'success');
+    addLog(`Token ID: ${mintTokenId.value}`);
+    addLog(`Transaction Hash: ${txHash}`);
 
-    currentStep.value = 4
+    currentStep.value = 4;
   } catch (error: any) {
-    addLog(`Mint failed: ${error.message}`, 'error')
-    console.error('Mint error:', error)
+    addLog(`Mint failed: ${error.message}`, 'error');
+    console.error('Mint error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -250,17 +253,17 @@ async function mintNFT() {
  */
 async function generateTransferHash() {
   try {
-    loading.value = true
-    addLog('Generating target hash...')
-    const hash = await getKeyHash(transferKey.value)
-    transferToHash.value = hash
-    addLog(`Target hash generated successfully!`, 'success')
-    addLog(`Hash: ${hash}`)
+    loading.value = true;
+    addLog('Generating target hash...');
+    const hash = await getKeyHash(transferKey.value);
+    transferToHash.value = hash;
+    addLog(`Target hash generated successfully!`, 'success');
+    addLog(`Hash: ${hash}`);
   } catch (error: any) {
-    addLog(`Failed to generate hash: ${error.message}`, 'error')
-    console.error('Generate hash error:', error)
+    addLog(`Failed to generate hash: ${error.message}`, 'error');
+    console.error('Generate hash error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -269,46 +272,42 @@ async function generateTransferHash() {
  */
 async function transferNFT() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   if (!transferTokenId.value) {
-    addLog('Please enter Token ID', 'error')
-    return
+    addLog('Please enter Token ID', 'error');
+    return;
   }
 
   if (!transferToHash.value) {
-    addLog('Please generate target hash first', 'error')
-    return
+    addLog('Please generate target hash first', 'error');
+    return;
   }
 
   if (!transferKey.value) {
-    addLog('Please enter transfer key', 'error')
-    return
+    addLog('Please enter transfer key', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog(`Transferring NFT #${transferTokenId.value}...`)
+    loading.value = true;
+    addLog(`Transferring NFT #${transferTokenId.value}...`);
 
-    const tokenId = BigInt(transferTokenId.value)
-    const txHash = await nftManager.value.transfer(
-      transferToHash.value,
-      tokenId,
-      privateKey.value
-    )
+    const tokenId = BigInt(transferTokenId.value);
+    const txHash = await nftManager.value.transfer(transferToHash.value, tokenId, privateKey.value);
 
-    addLog(`NFT transferred successfully!`, 'success')
-    addLog(`Target Hash: ${transferToHash.value}`)
-    addLog(`Transaction Hash: ${txHash}`)
+    addLog(`NFT transferred successfully!`, 'success');
+    addLog(`Target Hash: ${transferToHash.value}`);
+    addLog(`Transaction Hash: ${txHash}`);
 
-    currentStep.value = 5
+    currentStep.value = 5;
   } catch (error: any) {
-    addLog(`Transfer failed: ${error.message}`, 'error')
-    console.error('Transfer error:', error)
+    addLog(`Transfer failed: ${error.message}`, 'error');
+    console.error('Transfer error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -317,22 +316,22 @@ async function transferNFT() {
  */
 async function loadDeployedContracts() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   try {
-    addLog('Loading deployed contracts...')
-    const contracts = nftManager.value.getAllDeployedAddresses()
-    deployedContracts.value = [...contracts]
-    addLog(`Found ${contracts.length} deployed contract(s)`, 'success')
-    
+    addLog('Loading deployed contracts...');
+    const contracts = nftManager.value.getAllDeployedAddresses();
+    deployedContracts.value = [...contracts];
+    addLog(`Found ${contracts.length} deployed contract(s)`, 'success');
+
     if (contracts.length > 0) {
-      addLog('You can select a contract to interact with', 'info')
+      addLog('You can select a contract to interact with', 'info');
     }
   } catch (error: any) {
-    addLog(`Failed to load contracts: ${error.message}`, 'error')
-    console.error('Load contracts error:', error)
+    addLog(`Failed to load contracts: ${error.message}`, 'error');
+    console.error('Load contracts error:', error);
   }
 }
 
@@ -341,50 +340,50 @@ async function loadDeployedContracts() {
  */
 async function selectContract(address: string) {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog(`Selecting contract: ${address}`)
-    
+    loading.value = true;
+    addLog(`Selecting contract: ${address}`);
+
     // 使用 setDDCNFTAddress 方法设置当前合约地址
-    nftManager.value.setDDCNFTAddress(address)
-    
+    nftManager.value.setDDCNFTAddress(address);
+
     // 验证合约是否可访问并获取合约信息
-    const contract = await nftManager.value.getDDCNFTContract()
-    
-    let name = 'Unknown'
-    let symbol = 'Unknown'
+    const contract = await nftManager.value.getDDCNFTContract();
+
+    let name = 'Unknown';
+    let symbol = 'Unknown';
     try {
       if (contract.name) {
-        name = await contract.name()
+        name = await contract.name();
       }
       if (contract.symbol) {
-        symbol = await contract.symbol()
+        symbol = await contract.symbol();
       }
     } catch (queryError) {
-      console.warn('Could not query contract name/symbol:', queryError)
+      console.warn('Could not query contract name/symbol:', queryError);
     }
-    
+
     // 更新 UI 状态
-    nftContractAddress.value = address
-    selectedContract.value = address
-    
-    addLog(`Contract selected successfully!`, 'success')
-    addLog(`Name: ${name}, Symbol: ${symbol}`)
-    addLog(`Address: ${address}`)
-    
+    nftContractAddress.value = address;
+    selectedContract.value = address;
+
+    addLog(`Contract selected successfully!`, 'success');
+    addLog(`Name: ${name}, Symbol: ${symbol}`);
+    addLog(`Address: ${address}`);
+
     // 如果当前步骤还在部署阶段，跳到可以操作的阶段
     if (currentStep.value < 3) {
-      currentStep.value = 3
+      currentStep.value = 3;
     }
   } catch (error: any) {
-    addLog(`Failed to select contract: ${error.message}`, 'error')
-    console.error('Select contract error:', error)
+    addLog(`Failed to select contract: ${error.message}`, 'error');
+    console.error('Select contract error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -392,15 +391,15 @@ async function selectContract(address: string) {
  * Query NFT name
  */
 async function queryName() {
-  if (!nftManager.value) return
+  if (!nftManager.value) return;
 
   try {
-    addLog('Querying NFT name...')
-    const name = await nftManager.value.getName()
-    walletStore.setChainName(name)
-    addLog(`NFT Name: ${name}`, 'success')
+    addLog('Querying NFT name...');
+    const name = await nftManager.value.getName();
+    walletStore.setChainName(name);
+    addLog(`NFT Name: ${name}`, 'success');
   } catch (error: any) {
-    addLog(`Query failed: ${error.message}`, 'error')
+    addLog(`Query failed: ${error.message}`, 'error');
   }
 }
 
@@ -408,14 +407,14 @@ async function queryName() {
  * Query NFT symbol
  */
 async function querySymbol() {
-  if (!nftManager.value) return
+  if (!nftManager.value) return;
 
   try {
-    addLog('Querying NFT symbol...')
-    const symbol = await nftManager.value.getSymbol()
-    addLog(`NFT Symbol: ${symbol}`, 'success')
+    addLog('Querying NFT symbol...');
+    const symbol = await nftManager.value.getSymbol();
+    addLog(`NFT Symbol: ${symbol}`, 'success');
   } catch (error: any) {
-    addLog(`Query failed: ${error.message}`, 'error')
+    addLog(`Query failed: ${error.message}`, 'error');
   }
 }
 
@@ -424,19 +423,19 @@ async function querySymbol() {
  */
 function loadDefaultBaseURI() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   try {
-    const defaultMetadataUrl = nftManager.value.getDefaultMetadataURL()
+    const defaultMetadataUrl = nftManager.value.getDefaultMetadataURL();
     if (defaultMetadataUrl) {
-      baseURI.value = defaultMetadataUrl
-      addLog(`Default Base URI loaded: ${defaultMetadataUrl}`, 'success')
+      baseURI.value = defaultMetadataUrl;
+      addLog(`Default Base URI loaded: ${defaultMetadataUrl}`, 'success');
     }
   } catch (error: any) {
-    addLog(`Failed to load default Base URI: ${error.message}`, 'error')
-    console.error('Load default Base URI error:', error)
+    addLog(`Failed to load default Base URI: ${error.message}`, 'error');
+    console.error('Load default Base URI error:', error);
   }
 }
 
@@ -445,26 +444,26 @@ function loadDefaultBaseURI() {
  */
 async function setNFTBaseURI() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   if (!baseURI.value || !baseURI.value.trim()) {
-    addLog('Please enter Base URI', 'error')
-    return
+    addLog('Please enter Base URI', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog(`Setting Base URI: ${baseURI.value}...`)
-    await nftManager.value.setBaseURI(baseURI.value)
-    addLog('Base URI set successfully!', 'success')
-    addLog(`Base URI: ${baseURI.value}`)
+    loading.value = true;
+    addLog(`Setting Base URI: ${baseURI.value}...`);
+    await nftManager.value.setBaseURI(baseURI.value);
+    addLog('Base URI set successfully!', 'success');
+    addLog(`Base URI: ${baseURI.value}`);
   } catch (error: any) {
-    addLog(`Set Base URI failed: ${error.message}`, 'error')
-    console.error('Set Base URI error:', error)
+    addLog(`Set Base URI failed: ${error.message}`, 'error');
+    console.error('Set Base URI error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -473,27 +472,27 @@ async function setNFTBaseURI() {
  */
 async function queryTokenURI() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   if (!queryTokenId.value) {
-    addLog('Please enter Token ID', 'error')
-    return
+    addLog('Please enter Token ID', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog(`Querying Token URI for #${queryTokenId.value}...`)
-    const tokenId = BigInt(queryTokenId.value)
-    const uri = await nftManager.value.getTokenURI(tokenId)
-    tokenURI.value = uri
-    addLog(`Token URI: ${uri}`, 'success')
+    loading.value = true;
+    addLog(`Querying Token URI for #${queryTokenId.value}...`);
+    const tokenId = BigInt(queryTokenId.value);
+    const uri = await nftManager.value.getTokenURI(tokenId);
+    tokenURI.value = uri;
+    addLog(`Token URI: ${uri}`, 'success');
   } catch (error: any) {
-    addLog(`Query failed: ${error.message}`, 'error')
-    console.error('Query token URI error:', error)
+    addLog(`Query failed: ${error.message}`, 'error');
+    console.error('Query token URI error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -502,21 +501,21 @@ async function queryTokenURI() {
  */
 async function pauseContract() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog('Pausing NFT contract...')
-    const txHash = await nftManager.value.pause()
-    addLog('Contract paused successfully!', 'success')
-    addLog(`Transaction Hash: ${txHash}`)
+    loading.value = true;
+    addLog('Pausing NFT contract...');
+    const txHash = await nftManager.value.pause();
+    addLog('Contract paused successfully!', 'success');
+    addLog(`Transaction Hash: ${txHash}`);
   } catch (error: any) {
-    addLog(`Pause failed: ${error.message}`, 'error')
-    console.error('Pause error:', error)
+    addLog(`Pause failed: ${error.message}`, 'error');
+    console.error('Pause error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -525,21 +524,21 @@ async function pauseContract() {
  */
 async function unpauseContract() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog('Unpausing NFT contract...')
-    const txHash = await nftManager.value.unpause()
-    addLog('Contract unpaused successfully!', 'success')
-    addLog(`Transaction Hash: ${txHash}`)
+    loading.value = true;
+    addLog('Unpausing NFT contract...');
+    const txHash = await nftManager.value.unpause();
+    addLog('Contract unpaused successfully!', 'success');
+    addLog(`Transaction Hash: ${txHash}`);
   } catch (error: any) {
-    addLog(`Unpause failed: ${error.message}`, 'error')
-    console.error('Unpause error:', error)
+    addLog(`Unpause failed: ${error.message}`, 'error');
+    console.error('Unpause error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -548,27 +547,27 @@ async function unpauseContract() {
  */
 async function transferContractOwnership() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   if (!newOwnerAddress.value || !newOwnerAddress.value.trim()) {
-    addLog('Please enter new owner address', 'error')
-    return
+    addLog('Please enter new owner address', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog(`Transferring contract ownership to ${newOwnerAddress.value}...`)
-    const txHash = await nftManager.value.transferOwnership(newOwnerAddress.value)
-    addLog('Contract ownership transferred successfully!', 'success')
-    addLog(`New Owner: ${newOwnerAddress.value}`)
-    addLog(`Transaction Hash: ${txHash}`)
+    loading.value = true;
+    addLog(`Transferring contract ownership to ${newOwnerAddress.value}...`);
+    const txHash = await nftManager.value.transferOwnership(newOwnerAddress.value);
+    addLog('Contract ownership transferred successfully!', 'success');
+    addLog(`New Owner: ${newOwnerAddress.value}`);
+    addLog(`Transaction Hash: ${txHash}`);
   } catch (error: any) {
-    addLog(`Transfer ownership failed: ${error.message}`, 'error')
-    console.error('Transfer ownership error:', error)
+    addLog(`Transfer ownership failed: ${error.message}`, 'error');
+    console.error('Transfer ownership error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -577,36 +576,36 @@ async function transferContractOwnership() {
  */
 async function destroyNFT() {
   if (!nftManager.value) {
-    addLog('Please initialize Manager first', 'error')
-    return
+    addLog('Please initialize Manager first', 'error');
+    return;
   }
 
   if (!destroyTokenId.value) {
-    addLog('Please enter Token ID', 'error')
-    return
+    addLog('Please enter Token ID', 'error');
+    return;
   }
 
   if (!destroyKey.value || !destroyKey.value.trim()) {
-    addLog('Please enter destroy key', 'error')
-    return
+    addLog('Please enter destroy key', 'error');
+    return;
   }
 
   try {
-    loading.value = true
-    addLog(`Destroying NFT #${destroyTokenId.value}...`)
-    
-    const tokenId = BigInt(destroyTokenId.value)
+    loading.value = true;
+    addLog(`Destroying NFT #${destroyTokenId.value}...`);
+
+    const tokenId = BigInt(destroyTokenId.value);
     // const keyHash = await getKeyHash(destroyKey.value)
-    const txHash = await nftManager.value.destroy(tokenId, destroyKey.value)
-    
-    addLog('NFT destroyed successfully!', 'success')
-    addLog(`Token ID: ${destroyTokenId.value}`)
-    addLog(`Transaction Hash: ${txHash}`)
+    const txHash = await nftManager.value.destroy(tokenId, destroyKey.value);
+
+    addLog('NFT destroyed successfully!', 'success');
+    addLog(`Token ID: ${destroyTokenId.value}`);
+    addLog(`Transaction Hash: ${txHash}`);
   } catch (error: any) {
-    addLog(`Destroy failed: ${error.message}`, 'error')
-    console.error('Destroy error:', error)
+    addLog(`Destroy failed: ${error.message}`, 'error');
+    console.error('Destroy error:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -614,17 +613,17 @@ async function destroyNFT() {
  * Reset all state
  */
 function reset() {
-  nftManager.value = null
-  factoryAddress.value = ''
-  nftContractAddress.value = ''
-  deployedContracts.value = []
-  selectedContract.value = ''
-  transferToHash.value = ''
-  tokenURI.value = ''
-  newOwnerAddress.value = ''
-  currentStep.value = 0
-  logs.value = []
-  addLog('All state reset')
+  nftManager.value = null;
+  factoryAddress.value = '';
+  nftContractAddress.value = '';
+  deployedContracts.value = [];
+  selectedContract.value = '';
+  transferToHash.value = '';
+  tokenURI.value = '';
+  newOwnerAddress.value = '';
+  currentStep.value = 0;
+  logs.value = [];
+  addLog('All state reset');
 }
 </script>
 
@@ -685,11 +684,7 @@ function reset() {
         <div v-if="currentStep >= 1" class="operation-section">
           <h3>Step 2: Deploy DDCNFTFactory</h3>
           <p class="desc">Deploy factory contract for subsequent NFT contract deployments</p>
-          <button
-            @click="deployFactory"
-            :disabled="loading"
-            class="btn btn-primary"
-          >
+          <button @click="deployFactory" :disabled="loading" class="btn btn-primary">
             {{ loading && currentStep === 1 ? 'Deploying...' : 'Deploy Factory Contract' }}
           </button>
           <div v-if="factoryAddress" class="result-box">
@@ -736,7 +731,9 @@ function reset() {
         <!-- Set Base URI (Optional) -->
         <div v-if="currentStep >= 3" class="operation-section">
           <h3>🔗 Set Base URI (Optional)</h3>
-          <p class="desc">Set the base URI for NFT metadata. This should be done before minting tokens.</p>
+          <p class="desc">
+            Set the base URI for NFT metadata. This should be done before minting tokens.
+          </p>
           <div class="form-group">
             <label>Base URI:</label>
             <div class="input-with-button">
@@ -757,11 +754,7 @@ function reset() {
             </div>
             <small>The base URI will be used to construct token URIs (baseURI + tokenId)</small>
           </div>
-          <button
-            @click="setNFTBaseURI"
-            :disabled="loading"
-            class="btn btn-secondary"
-          >
+          <button @click="setNFTBaseURI" :disabled="loading" class="btn btn-secondary">
             {{ loading ? 'Setting...' : 'Set Base URI' }}
           </button>
         </div>
@@ -776,20 +769,10 @@ function reset() {
           </div>
           <div class="form-group">
             <label>Key Hash:</label>
-            <input
-              v-model="mintKeyHash"
-              type="text"
-              placeholder="0x..."
-              class="input"
-              disabled
-            />
+            <input v-model="mintKeyHash" type="text" placeholder="0x..." class="input" disabled />
             <small>Key hash for verification (test fixed value)</small>
           </div>
-          <button
-            @click="mintNFT"
-            :disabled="!canMint || loading"
-            class="btn btn-primary"
-          >
+          <button @click="mintNFT" :disabled="!canMint || loading" class="btn btn-primary">
             {{ loading && currentStep === 3 ? 'Minting...' : 'Mint NFT' }}
           </button>
         </div>
@@ -798,15 +781,10 @@ function reset() {
         <div v-if="currentStep >= 3" class="operation-section">
           <h3>🔄 Transfer NFT</h3>
           <p class="desc">Transfer NFT to another user (requires target user's private key hash)</p>
-          
+
           <div class="form-group">
             <label>Token ID to Transfer:</label>
-            <input
-              v-model="transferTokenId"
-              type="number"
-              placeholder="1"
-              class="input"
-            />
+            <input v-model="transferTokenId" type="number" placeholder="1" class="input" />
           </div>
 
           <button
@@ -833,11 +811,7 @@ function reset() {
             <small>The key used for transfer verification</small>
           </div>
 
-          <button
-            @click="transferNFT"
-            :disabled="!canTransfer || loading"
-            class="btn btn-primary"
-          >
+          <button @click="transferNFT" :disabled="!canTransfer || loading" class="btn btn-primary">
             {{ loading ? 'Transferring...' : '🚀 Transfer NFT' }}
           </button>
         </div>
@@ -846,7 +820,7 @@ function reset() {
         <div v-if="currentStep >= 2" class="operation-section">
           <h3>📜 Deployed Contracts</h3>
           <p class="desc">View and select from previously deployed contracts</p>
-          
+
           <button
             @click="loadDeployedContracts"
             class="btn btn-secondary btn-sm"
@@ -945,16 +919,16 @@ function reset() {
         <!-- Transfer Contract Ownership -->
         <div v-if="currentStep >= 3" class="operation-section">
           <h3>👑 Transfer Contract Ownership</h3>
-          <p class="desc">Transfer contract ownership to another address (owner only, irreversible!)</p>
+          <p class="desc">
+            Transfer contract ownership to another address (owner only, irreversible!)
+          </p>
           <div class="form-group">
             <label>New Owner Address:</label>
-            <input
-              v-model="newOwnerAddress"
-              type="text"
-              placeholder="0x..."
-              class="input"
-            />
-            <small>⚠️ Warning: This action is irreversible. The new owner will have full control of the contract.</small>
+            <input v-model="newOwnerAddress" type="text" placeholder="0x..." class="input" />
+            <small
+              >⚠️ Warning: This action is irreversible. The new owner will have full control of the
+              contract.</small
+            >
           </div>
           <button
             @click="transferContractOwnership"
@@ -971,22 +945,14 @@ function reset() {
           <p class="desc">Permanently destroy (burn) an NFT token</p>
           <div class="form-group">
             <label>Token ID to Destroy:</label>
-            <input
-              v-model="destroyTokenId"
-              type="number"
-              placeholder="1"
-              class="input"
-            />
+            <input v-model="destroyTokenId" type="number" placeholder="1" class="input" />
           </div>
           <div class="form-group">
             <label>Destroy Key:</label>
-            <input
-              v-model="destroyKey"
-              type="text"
-              placeholder="Enter destroy key"
-              class="input"
-            />
-            <small>The key required to destroy this NFT (must match the key used during minting)</small>
+            <input v-model="destroyKey" type="text" placeholder="Enter destroy key" class="input" />
+            <small
+              >The key required to destroy this NFT (must match the key used during minting)</small
+            >
           </div>
           <button
             @click="destroyNFT"
@@ -999,9 +965,7 @@ function reset() {
 
         <!-- Reset Button -->
         <div v-if="currentStep > 0" class="operation-section">
-          <button @click="reset" class="btn btn-danger">
-            🔄 Reset All State
-          </button>
+          <button @click="reset" class="btn btn-danger">🔄 Reset All State</button>
         </div>
       </div>
 
@@ -1009,9 +973,7 @@ function reset() {
       <div class="logs-panel">
         <h3>📋 Operation Logs</h3>
         <div class="logs-container">
-          <div v-if="logs.length === 0" class="no-logs">
-            No logs yet
-          </div>
+          <div v-if="logs.length === 0" class="no-logs">No logs yet</div>
           <div v-else class="log-list">
             <div v-for="(log, index) in logs" :key="index" class="log-item">
               {{ log }}

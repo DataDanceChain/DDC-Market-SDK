@@ -13,36 +13,40 @@
  * 2. Prepare your private key
  */
 
-import { ref, computed } from 'vue'
-import { useWalletStore } from '../../stores/wallet'
-import { getProvider, getSigner, getAddress } from '@ddc-market/sdk'
+import { ref, computed } from 'vue';
+import { useWalletStore } from '../../stores/wallet';
+import { getProvider, getSigner, getAddress } from '@ddc-market/sdk';
 
 // ============================================================================
 // Store
 // =========================================================================
-const walletStore = useWalletStore()
+const walletStore = useWalletStore();
 
 // ============================================================================
 // State Management
 // ============================================================================
 
-const walletAddress = ref<string>('')
-const connected = ref(false)
-const status = ref<string>('Wallet not connected')
+const walletAddress = ref<string>('');
+const connected = ref(false);
+const status = ref<string>('Wallet not connected');
 // Input Your Wallet Private Key Here !!!
-const privateKey = ref<string>('')
-const networkInfo = ref<{ chainId: number; chainName: string } | null>(null)
-
+const networkInfo = ref<{ chainId: number; chainName: string } | null>(null);
 
 // ============================================================================
 // Computed
 // ============================================================================
 
 const statusClass = computed(() => {
-  if (status.value.includes('success') || status.value.includes('Success')) return 'success'
-  if (status.value.includes('failed') || status.value.includes('Failed') || status.value.includes('error') || status.value.includes('Error')) return 'error'
-  return ''
-})
+  if (status.value.includes('success') || status.value.includes('Success')) return 'success';
+  if (
+    status.value.includes('failed') ||
+    status.value.includes('Failed') ||
+    status.value.includes('error') ||
+    status.value.includes('Error')
+  )
+    return 'error';
+  return '';
+});
 
 // ============================================================================
 // Methods
@@ -53,43 +57,43 @@ const statusClass = computed(() => {
  */
 async function connectMetaMask() {
   try {
-    status.value = 'Connecting to MetaMask...'
+    status.value = 'Connecting to MetaMask...';
 
     // Check if MetaMask is installed
     if (!window.ethereum) {
-      status.value = '❌ MetaMask not detected! Please install MetaMask extension'
-      return
+      status.value = '❌ MetaMask not detected! Please install MetaMask extension';
+      return;
     }
 
     // Create Provider
-    const provider = getProvider(window.ethereum)
+    const provider = getProvider(window.ethereum);
     // Get Signer for SDK
-    const signer = await getSigner(provider) 
+    const signer = await getSigner(provider);
     // Get wallet address
-    const address = await getAddress(signer)
+    const address = await getAddress(signer);
     
     // Request account access
-    const accounts = await (provider as any).send('eth_requestAccounts', [])
+    const accounts = await (provider as any).send('eth_requestAccounts', []);
     if (accounts.length === 0) {
-      status.value = '❌ No accounts found'
-      return
+      status.value = '❌ No accounts found';
+      return;
     }
 
     // Get network information
     try {
-      const network = await provider.getNetwork()
+      const network = await provider.getNetwork();
       networkInfo.value = {
         chainId: Number(network.chainId),
-        chainName: network.name
-      }
+        chainName: network.name,
+      };
     } catch (error) {
-      console.warn('Failed to get network info:', error)
+      console.warn('Failed to get network info:', error);
     }
   
     // Update state
-    walletAddress.value = address
-    connected.value = true
-    status.value = '✅ MetaMask connected successfully'
+    walletAddress.value = address;
+    connected.value = true;
+    status.value = '✅ MetaMask connected successfully';
 
     // Update global wallet store
     walletStore.setConnection({
@@ -98,13 +102,13 @@ async function connectMetaMask() {
       walletAddress: address,
       privateKey: privateKey.value,
       connectionType: 'metamask',
-    })
+    });
 
-    console.log('✅ Wallet connected:', address)
-    console.log('✅ Network:', networkInfo.value)
+    console.log('✅ Wallet connected:', address);
+    console.log('✅ Network:', networkInfo.value);
   } catch (error: any) {
-    status.value = `❌ Connection failed: ${error.message}`
-    console.error('Failed to connect MetaMask:', error)
+    status.value = `❌ Connection failed: ${error.message}`;
+    console.error('Failed to connect MetaMask:', error);
   }
 }
 
@@ -112,17 +116,16 @@ async function connectMetaMask() {
  * Disconnect wallet
  */
 function disconnect() {
-  walletAddress.value = ''
-  connected.value = false
-  networkInfo.value = null
-  status.value = 'Disconnected'
+  walletAddress.value = '';
+  connected.value = false;
+  networkInfo.value = null;
+  status.value = 'Disconnected';
 
   // Clear global store
-  walletStore.clear()
+  walletStore.clear();
 
-  console.log('👋 Wallet disconnected')
+  console.log('👋 Wallet disconnected');
 }
-
 </script>
 
 <template>
@@ -156,16 +159,12 @@ function disconnect() {
     <!-- Not Connected: Display connection buttons -->
     <div v-else class="connect-options">
       <!-- MetaMask Connection -->
-      <button @click="connectMetaMask" class="btn btn-primary">
-        🦊 Connect MetaMask
-      </button>
+      <button @click="connectMetaMask" class="btn btn-primary">🦊 Connect MetaMask</button>
     </div>
 
     <!-- Connected: Display disconnect button -->
     <div v-if="connected" class="actions">
-      <button @click="disconnect" class="btn btn-danger">
-        ⛔ Disconnect
-      </button>
+      <button @click="disconnect" class="btn btn-danger">⛔ Disconnect</button>
     </div>
   </div>
 </template>

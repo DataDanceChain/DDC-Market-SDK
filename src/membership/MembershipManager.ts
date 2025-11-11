@@ -1,4 +1,10 @@
-import { Contract, ContractTransactionResponse, Interface, BrowserProvider } from 'ethers';
+import {
+  Contract,
+  ContractTransactionResponse,
+  Interface,
+  BrowserProvider,
+  JsonRpcProvider,
+} from 'ethers';
 import type {
   DeploymentResult,
   MintResult,
@@ -7,7 +13,7 @@ import type {
   ManagerConfig,
 } from '../types';
 import { SDKError } from '../types';
-import { createContract, validateAddress, getSigner } from '../utils';
+import { createContract, validateAddress, resolveProvider, getSigner } from '../utils';
 import { MEMBERSHIP_ABI, MEMBERSHIP_FACTORY_ABI } from '../abi';
 import { getDDCConfig } from '../service/api';
 import MembershipFactoryJson from '../abi/MembershipFactory.json';
@@ -47,7 +53,11 @@ export class MembershipManager extends BaseManager<'membership'> {
    * @protected
    * @returns Contract address from event, or empty string if event not found
    */
-  protected parseDeploymentEvent(receipt: any, expectedName: string, expectedSymbol: string): string {
+  protected parseDeploymentEvent(
+    receipt: any,
+    expectedName: string,
+    expectedSymbol: string
+  ): string {
     try {
       // Create a fresh Interface instance to avoid ethers.js v6 internal class check issues
       const factoryInterface = new Interface(MEMBERSHIP_FACTORY_ABI);
@@ -292,11 +302,32 @@ export class MembershipManager extends BaseManager<'membership'> {
     );
   }
 
-
   /**
    * Init Instance of MembershipManager
-   * @param config - Configuration object
+   * Supports both BrowserProvider and JsonRpcProvider modes
+   *
+   * @param manageConfig - Configuration object
    * @returns MembershipManager instance
+   *
+   * @example
+   * ```typescript
+   * // BrowserProvider mode - user constructs BrowserProvider
+   * import { BrowserProvider } from 'ethers';
+   * const manager = await MembershipManager.init({
+   *   walletAddress: '0x...',
+   *   provider: new BrowserProvider(window.ethereum),
+   *   debug: true
+   * });
+   *
+   * // JsonRpcProvider mode - using descriptor (SDK constructs for you to avoid version conflicts)
+   * // rpcUrl and chainId are automatically fetched from getDDCConfig API
+   * const manager = await MembershipManager.init({
+   *   walletAddress: '0x...',
+   *   provider: { type: 'jsonRpc' }, // rpcUrl and chainId auto-filled from API
+   *   signer: { privateKey: '0x...' },
+   *   debug: true
+   * });
+   * ```
    **/
   static async init(manageConfig: ManagerParams): Promise<MembershipManager> {
     if (!manageConfig) {
@@ -305,40 +336,65 @@ export class MembershipManager extends BaseManager<'membership'> {
       });
     }
 
-    const { walletAddress, provider, debug } = manageConfig;
-    // query ddc config from api
+    const { walletAddress, provider, signer, debug } = manageConfig;
+
+    // Query ddc config from api first to get network config
+    // This allows us to auto-fill rpcUrl/chainId for JsonRpcProvider mode
     const result = await getDDCConfig({ address: walletAddress });
 
-    if (result.success) {
-      const { membership_factory_address, network, metadata_url, membership_address } = result.data.data;
-      const config: ManagerConfig = {
-        provider,
-        debug: debug || false,
-        network: network,
-        factoryAddress: membership_factory_address,
-      };
-      this.instance = new MembershipManager(config);
-      await this.instance.ensureNetwork();
-
-
-      if (config.factoryAddress) {
-        validateAddress(config.factoryAddress, 'Factory address');
-        this.instance.factoryAddress =  config.factoryAddress;
-        const signer = await getSigner(this.instance.provider as BrowserProvider);
-        this.instance.factoryContract = createContract(config.factoryAddress, MEMBERSHIP_FACTORY_ABI, signer);
-      }
-
-      if (membership_address) {
-        this.instance.deployedContracts= [...membership_address];
-      }
-      
-      if (metadata_url) {
-        this.instance.metadataUrl = metadata_url;
-      }
-
-      return this.instance;
+    if (!result.success) {
+      throw new SDKError('Failed to get DDC config', 'DDC_CONFIG_ERROR', { result });
     }
-    throw new SDKError('Failed to get DDC config', 'DDC_CONFIG_ERROR', { result });
+
+    const { membership_factory_address, network, metadata_url, membership_address } =
+      result.data.data;
+
+    // Resolve provider from descriptor or use directly
+    // For JsonRpcProviderDescriptor, network config can auto-fill missing rpcUrl/chainId
+    const resolvedProvider = resolveProvider(provider, network);
+
+    // Validate signer config for JsonRpcProvider mode
+    if (resolvedProvider instanceof JsonRpcProvider && !signer) {
+      throw new SDKError(
+        'Signer configuration is required for JsonRpcProvider mode. Please provide signer with privateKey.',
+        'MISSING_SIGNER_CONFIG',
+        { providerType: 'JsonRpcProvider' }
+      );
+    }
+
+    const config: ManagerConfig = {
+      provider: resolvedProvider,
+      debug: debug || false,
+      network: network,
+      factoryAddress: membership_factory_address,
+      signerConfig: signer,
+    };
+    this.instance = new MembershipManager(config);
+    await this.instance.ensureNetwork();
+
+    if (config.factoryAddress) {
+      validateAddress(config.factoryAddress, 'Factory address');
+      this.instance.factoryAddress = config.factoryAddress;
+      if (!this.instance.provider) {
+        throw new SDKError('Provider is not available', 'PROVIDER_NOT_AVAILABLE');
+      }
+      const signerInstance = await getSigner(this.instance.provider, this.instance.signerConfig);
+      this.instance.factoryContract = createContract(
+        config.factoryAddress,
+        MEMBERSHIP_FACTORY_ABI,
+        signerInstance
+      );
+    }
+
+    if (membership_address) {
+      this.instance.deployedContracts = [...membership_address];
+    }
+
+    if (metadata_url) {
+      this.instance.metadataUrl = metadata_url;
+    }
+
+    return this.instance;
   }
 
   /**
@@ -442,28 +498,28 @@ export class MembershipManager extends BaseManager<'membership'> {
     await this.ensureNetwork();
     const contract = await this.getContract();
 
-        // Validate keyHash is provided
-        if (!addressHash || !addressHash.trim()) {
-          throw new SDKError('keyHash is required for minting', 'MISSING_KEY_HASH', { addressHash });
-        }
-    
-        // Validate keyHash format
-        if (addressHash.length !== 66 || !addressHash.startsWith('0x')) {
-          throw new SDKError(
-            'Invalid keyHash format. Expected bytes32 (0x + 64 hex characters)',
-            'INVALID_PARAMETER',
-            { addressHash }
-          );
-        }
-    
-        // Validate keyHash is not zero (contract requirement)
-        if (addressHash.toLowerCase() === this.BYTES32_ZERO.toLowerCase()) {
-          throw new SDKError(
-            'keyHash cannot be bytes32 zero value. Please provide a valid key hash generated from keccak256(key).',
-            'INVALID_KEY_HASH',
-            { addressHash }
-          );
-        }
+    // Validate keyHash is provided
+    if (!addressHash || !addressHash.trim()) {
+      throw new SDKError('keyHash is required for minting', 'MISSING_KEY_HASH', { addressHash });
+    }
+
+    // Validate keyHash format
+    if (addressHash.length !== 66 || !addressHash.startsWith('0x')) {
+      throw new SDKError(
+        'Invalid keyHash format. Expected bytes32 (0x + 64 hex characters)',
+        'INVALID_PARAMETER',
+        { addressHash }
+      );
+    }
+
+    // Validate keyHash is not zero (contract requirement)
+    if (addressHash.toLowerCase() === this.BYTES32_ZERO.toLowerCase()) {
+      throw new SDKError(
+        'keyHash cannot be bytes32 zero value. Please provide a valid key hash generated from keccak256(key).',
+        'INVALID_KEY_HASH',
+        { addressHash }
+      );
+    }
 
     try {
       // Step 1: Execute mint transaction
@@ -542,8 +598,8 @@ export class MembershipManager extends BaseManager<'membership'> {
     await this.ensureNetwork();
     const contract = await this.getContract();
 
-     // Validate parameters
-     if (!tokenId) {
+    // Validate parameters
+    if (!tokenId) {
       throw new SDKError('tokenId is required for destroying', 'MISSING_TOKEN_ID', { tokenId });
     }
 
@@ -604,7 +660,6 @@ export class MembershipManager extends BaseManager<'membership'> {
       );
     }
   }
-
 
   /**
    * Get contract address
@@ -701,7 +756,7 @@ export class MembershipManager extends BaseManager<'membership'> {
         throw new SDKError(
           'Contract does not exist or is not deployed at this address',
           'CONTRACT_NOT_FOUND',
-          { contractAddress  }
+          { contractAddress }
         );
       }
 
@@ -746,7 +801,12 @@ export class MembershipManager extends BaseManager<'membership'> {
       throw new SDKError(
         `Failed to check member in snapshot: ${error.message}`,
         'CONTRACT_CALL_ERROR',
-        { contractAddress: this.getContractAddress(), snapshotId, addressHash, error: error.message }
+        {
+          contractAddress: this.getContractAddress(),
+          snapshotId,
+          addressHash,
+          error: error.message,
+        }
       );
     }
   }

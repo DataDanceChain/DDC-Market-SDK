@@ -49,4 +49,4 @@ const web3AuthContextConfig: Web3AuthContextConfig = {
 };
 
 export default web3AuthContextConfig;
-export { clientId, chainConfig };
+export { clientId };

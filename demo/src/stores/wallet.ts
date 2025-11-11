@@ -12,9 +12,17 @@ export const useWalletStore = defineStore('wallet', {
     connectionType: '' as 'metamask' | 'web3auth' | '',
     provider: null as any,
     chainName: '' as string,
+    walletPrivateKey: '' as string,
+    toWalletPrivateKey: '' as string,
     // signer: null as Nullable<Signer>,
   }),
   actions: {
+    setWalletPrivateKey(walletPrivateKey: string) {
+      this.walletPrivateKey = walletPrivateKey;
+    },
+    setToWalletPrivateKey(toWalletPrivateKey: string) {
+      this.toWalletPrivateKey = toWalletPrivateKey;
+    },
     setConnection(params: {
       provider: any;
       signer: Signer;

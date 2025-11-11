@@ -1,18 +1,67 @@
-import type { Eip1193Provider as EthersEip1193Provider, Provider, Signer } from 'ethers';
+import type {
+  Eip1193Provider as EthersEip1193Provider,
+  Provider,
+  Signer,
+  BrowserProvider,
+} from 'ethers';
 import type { AxiosError } from 'axios';
 
 /**
+ * Provider descriptor for JsonRpcProvider mode
+ * Direct RPC connection to blockchain node
+ *
+ * Note: For BrowserProvider mode, users should construct BrowserProvider directly
+ * (e.g., `new BrowserProvider(window.ethereum)`) and pass it as Provider.
+ * SDK does not provide a descriptor for BrowserProvider to avoid ethers version conflicts.
+ *
+ * For JsonRpcProvider mode, rpcUrl and chainId are automatically fetched from
+ * getDDCConfig API response (network.rpc_url and network.chain_id).
+ * No parameters needed - just use { type: 'jsonRpc' }.
+ */
+export interface JsonRpcProviderDescriptor {
+  type: 'jsonRpc';
+}
+
+/**
+ * Provider descriptor - only for JsonRpcProvider mode
+ * BrowserProvider should be constructed by users and passed directly as Provider
+ */
+export type ProviderDescriptor = JsonRpcProviderDescriptor;
+
+/**
+ * Signer configuration for JsonRpcProvider mode
+ */
+export interface SignerConfig {
+  /**
+   * Private key for signing transactions (required for JsonRpcProvider mode)
+   */
+  privateKey: string;
+}
+
+/**
  * Manager params for contract operations init
+ * Supports BrowserProvider (user-constructed) and JsonRpcProvider (via descriptor only)
  */
 export interface ManagerParams {
   /**
    * Provider for contract operations
+   * Can be:
+   * - BrowserProvider instance (user constructs it, e.g., new BrowserProvider(window.ethereum))
+   * - JsonRpcProviderDescriptor (SDK will construct JsonRpcProvider for you using SDK's ethers version)
+   *
+   * Note: For JsonRpcProvider, use descriptor instead of constructing directly to avoid ethers version conflicts.
+   * SDK's createJsonRpcProvider ensures compatibility with SDK's internal ethers version.
    */
-  provider: Provider;
+  provider: BrowserProvider | JsonRpcProviderDescriptor;
   /**
-   *  current user wallet address
+   * Current user wallet address
    */
   walletAddress: string;
+  /**
+   * Signer configuration (required for JsonRpcProvider mode)
+   * When using JsonRpcProvider, provide privateKey to sign transactions
+   */
+  signer?: SignerConfig;
   /**
    * Enable debug logging
    */
@@ -39,6 +88,11 @@ export interface ManagerConfig {
    * Chain configuration
    */
   network: DDCChainConfig;
+  /**
+   * Signer configuration (required for JsonRpcProvider mode)
+   * When using JsonRpcProvider, provide privateKey to sign transactions
+   */
+  signerConfig?: SignerConfig;
 }
 
 /**
@@ -58,14 +112,14 @@ export interface DDCChainConfig {
    * RPC URL for the network
    */
   rpc_url?: string;
-  
+
   /**
    * Native currency symbol
-  */
- token_symbol: string;
- /**
-  * DDC explorer URL
- */
+   */
+  token_symbol: string;
+  /**
+   * DDC explorer URL
+   */
   explore_url?: string;
   /**
    * Block explorer URL
