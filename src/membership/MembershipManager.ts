@@ -13,7 +13,13 @@ import type {
   ManagerConfig,
 } from '../types';
 import { SDKError } from '../types';
-import { createContract, validateAddress, resolveProvider, getSigner } from '../utils';
+import {
+  createContract,
+  validateAddress,
+  resolveProvider,
+  getSigner,
+  resolveWalletAddress,
+} from '../utils';
 import { MEMBERSHIP_ABI, MEMBERSHIP_FACTORY_ABI } from '../abi';
 import { getDDCConfig } from '../service/api';
 import MembershipFactoryJson from '../abi/MembershipFactory.json';
@@ -338,9 +344,13 @@ export class MembershipManager extends BaseManager<'membership'> {
 
     const { walletAddress, provider, signer, debug } = manageConfig;
 
+    // Resolve wallet address: if JsonRpcProvider mode and signer provided, extract from privateKey
+    // Wallet object has address property that can be accessed synchronously
+    const resolvedWalletAddress = resolveWalletAddress(provider, walletAddress, signer);
+
     // Query ddc config from api first to get network config
     // This allows us to auto-fill rpcUrl/chainId for JsonRpcProvider mode
-    const result = await getDDCConfig({ address: walletAddress });
+    const result = await getDDCConfig({ address: resolvedWalletAddress });
 
     if (!result.success) {
       throw new SDKError('Failed to get DDC config', 'DDC_CONFIG_ERROR', { result });
