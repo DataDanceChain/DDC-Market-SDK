@@ -17,6 +17,7 @@ dist/
 
 # NPM authentication (keep tokens secret)
 .npmrc.local
+.npmrc
 
 # IDE
 .vscode/
