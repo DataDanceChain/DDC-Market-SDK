@@ -17,7 +17,7 @@
  */
 
 import { ref, computed } from 'vue';
-import { DDCNFTManager, getKeyHash } from '@ddc-market/sdk';
+import { DDCNFTManager, getKeyHash } from '@ddcmarket/sdk';
 import { useWalletStore } from '../../stores/wallet';
 
 // ============================================================================
@@ -44,6 +44,7 @@ const mintTokenId = ref('1');
 const mintKeyHash = ref(''); // Test keyHash
 const transferToHash = ref(''); // Transfer target hash (bytes32)
 const transferTokenId = ref('1'); // Token ID for transfer
+const transferKey = ref(''); // Transfer key for transfer operation
 // Input Your Wallet Private Key Here !!!
 // Input Your Transfer Target Private Key of Wallet you want to transfer to Here !!!
 const privateKey = ref(walletStore.walletPrivateKey);
@@ -53,6 +54,9 @@ const tokenURI = ref(''); // Token URI result
 const baseURI = ref(''); // Base URI for NFT metadata
 const newOwnerAddress = ref(''); // New owner address for transferOwnership
 const destroyTokenId = ref('1'); // Token ID to destroy
+const setTokenId = ref('1'); // Token ID for setting URI
+const setTokenURIValue = ref(''); // URI value to set for token
+const clearTokenId = ref('1'); // Token ID for clearing URI
 const ddcNftResult = ref<{
   contractAddress: string;
   transactionHash: string;
@@ -232,7 +236,7 @@ async function mintNFT() {
     addLog(`Minting NFT #${mintTokenId.value}...`);
 
     const tokenId = BigInt(mintTokenId.value);
-    mintKeyHash.value = await getKeyHash(privateKey.value);
+    mintKeyHash.value = await getKeyHash(walletStore.privateKey);
     const txHash = await nftManager.value.mint(tokenId, mintKeyHash.value);
 
     addLog(`NFT minted successfully!`, 'success');
@@ -497,6 +501,73 @@ async function queryTokenURI() {
 }
 
 /**
+ * Set Token URI
+ */
+async function setTokenURI() {
+  if (!nftManager.value) {
+    addLog('Please initialize Manager first', 'error');
+    return;
+  }
+
+  if (!setTokenId.value) {
+    addLog('Please enter Token ID', 'error');
+    return;
+  }
+
+  if (!setTokenURIValue.value || !setTokenURIValue.value.trim()) {
+    addLog('Please enter Token URI', 'error');
+    return;
+  }
+
+  try {
+    loading.value = true;
+    addLog(`Setting Token URI for #${setTokenId.value}...`);
+    const tokenId = BigInt(setTokenId.value);
+    const txHash = await nftManager.value.setTokenURI(tokenId, setTokenURIValue.value);
+    addLog('Token URI set successfully!', 'success');
+    addLog(`Token ID: ${setTokenId.value}`);
+    addLog(`URI: ${setTokenURIValue.value}`);
+    addLog(`Transaction Hash: ${txHash}`);
+  } catch (error: any) {
+    addLog(`Set Token URI failed: ${error.message}`, 'error');
+    console.error('Set token URI error:', error);
+  } finally {
+    loading.value = false;
+  }
+}
+
+/**
+ * Clear Token URI
+ */
+async function clearTokenURI() {
+  if (!nftManager.value) {
+    addLog('Please initialize Manager first', 'error');
+    return;
+  }
+
+  if (!clearTokenId.value) {
+    addLog('Please enter Token ID', 'error');
+    return;
+  }
+
+  try {
+    loading.value = true;
+    addLog(`Clearing Token URI for #${clearTokenId.value}...`);
+    const tokenId = BigInt(clearTokenId.value);
+    const txHash = await nftManager.value.clearTokenURI(tokenId);
+    addLog('Token URI cleared successfully!', 'success');
+    addLog(`Token ID: ${clearTokenId.value}`);
+    addLog(`Transaction Hash: ${txHash}`);
+    addLog('Token will now use baseURI + tokenId', 'info');
+  } catch (error: any) {
+    addLog(`Clear Token URI failed: ${error.message}`, 'error');
+    console.error('Clear token URI error:', error);
+  } finally {
+    loading.value = false;
+  }
+}
+
+/**
  * Pause NFT Contract
  */
 async function pauseContract() {
@@ -621,6 +692,9 @@ function reset() {
   transferToHash.value = '';
   tokenURI.value = '';
   newOwnerAddress.value = '';
+  setTokenId.value = '1';
+  setTokenURIValue.value = '';
+  clearTokenId.value = '1';
   currentStep.value = 0;
   logs.value = [];
   addLog('All state reset');
@@ -898,6 +972,51 @@ function reset() {
                 <strong>Token URI:</strong>
                 <code>{{ tokenURI }}</code>
               </div>
+            </div>
+
+            <div class="query-group">
+              <h4>Set Token URI</h4>
+              <p class="desc">
+                Set an individual full URI for a specific token. Use only when the token needs
+                completely different metadata from others.
+              </p>
+              <div class="form-group">
+                <label>Token ID:</label>
+                <input v-model="setTokenId" type="number" placeholder="1" class="input input-sm" />
+              </div>
+              <div class="form-group">
+                <label>Token URI:</label>
+                <input
+                  v-model="setTokenURIValue"
+                  type="text"
+                  placeholder="https://api.example.com/metadata/token/1"
+                  class="input input-sm"
+                />
+                <small>Full URI for this specific token</small>
+              </div>
+              <button @click="setTokenURI" class="btn btn-secondary btn-sm" :disabled="loading">
+                {{ loading ? 'Setting...' : 'Set Token URI' }}
+              </button>
+            </div>
+
+            <div class="query-group">
+              <h4>Clear Token URI</h4>
+              <p class="desc">
+                Clear the individual URI for a specific token. After clearing, the token will fall
+                back to using baseURI + tokenId.
+              </p>
+              <div class="form-group">
+                <label>Token ID:</label>
+                <input
+                  v-model="clearTokenId"
+                  type="number"
+                  placeholder="1"
+                  class="input input-sm"
+                />
+              </div>
+              <button @click="clearTokenURI" class="btn btn-secondary btn-sm" :disabled="loading">
+                {{ loading ? 'Clearing...' : 'Clear Token URI' }}
+              </button>
             </div>
           </div>
         </div>

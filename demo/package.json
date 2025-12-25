@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ddc-market/sdk": "workspace:*",
+    "@ddcmarket/sdk": "workspace:*",
     "@tanstack/vue-query": "^5.90.6",
     "@wagmi/vue": "^0.3.2",
     "@web3auth/modal": "^10.5.6",

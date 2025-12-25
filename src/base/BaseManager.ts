@@ -7,6 +7,7 @@ import {
   JsonRpcProvider,
   getAddress,
   Interface,
+  ContractTransactionReceipt,
 } from 'ethers';
 import type {
   DeploymentResult,
@@ -293,7 +294,7 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
         this.getDeployMethodName()
       ](name, symbol);
 
-      const receipt = await tx.wait();
+      const receipt: ContractTransactionReceipt | null = await tx.wait();
       if (!receipt) {
         throw new SDKError('Transaction receipt not available', 'TX_RECEIPT_ERROR');
       }

@@ -15,7 +15,7 @@
 
 import { ref, computed } from 'vue';
 import { useWalletStore } from '../../stores/wallet';
-import { getProvider, getSigner, getAddress } from '@ddc-market/sdk';
+import { getProvider, getSigner, getAddress } from '@ddcmarket/sdk';
 
 // ============================================================================
 // Store
@@ -71,7 +71,7 @@ async function connectMetaMask() {
     const signer = await getSigner(provider);
     // Get wallet address
     const address = await getAddress(signer);
-    
+
     // Request account access
     const accounts = await (provider as any).send('eth_requestAccounts', []);
     if (accounts.length === 0) {
@@ -89,7 +89,7 @@ async function connectMetaMask() {
     } catch (error) {
       console.warn('Failed to get network info:', error);
     }
-  
+
     // Update state
     walletAddress.value = address;
     connected.value = true;
@@ -100,7 +100,7 @@ async function connectMetaMask() {
       provider,
       signer,
       walletAddress: address,
-      privateKey: privateKey.value,
+      privateKey: walletStore.privateKey,
       connectionType: 'metamask',
     });
 
@@ -145,7 +145,7 @@ function disconnect() {
       </div>
       <div class="info-row">
         <span class="label">Private Key:</span>
-        <code class="address">{{ privateKey }}</code>
+        <code class="address">{{ walletStore.privateKey }}</code>
       </div>
       <div v-if="networkInfo" class="info-row">
         <span class="label">Network:</span>

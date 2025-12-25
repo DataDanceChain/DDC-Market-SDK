@@ -537,6 +537,139 @@ export class DDCNFTManager extends BaseManager<'nft'> {
   }
 
   /**
+   * Set an individual full URI for a specific token
+   * Use only when the token needs completely different metadata from others
+   * Each call consumes an additional storage slot (~20,000 gas) - not recommended for bulk use
+   *
+   * @param tokenId - Token ID to set URI for
+   * @param uri - Full URI string for the token
+   * @returns Transaction hash
+   */
+  @ensureContractDeployed
+  async setTokenURI(tokenId: bigint, uri: string): Promise<string> {
+    await this.ensureNetwork();
+    const contract = await this.getContract();
+
+    // Validate tokenId
+    if (!tokenId || tokenId === 0n) {
+      throw new SDKError('tokenId must be non-zero', 'INVALID_TOKEN_ID', { tokenId });
+    }
+
+    // Validate uri
+    if (!uri || typeof uri !== 'string') {
+      throw new SDKError('uri must be a non-empty string', 'INVALID_PARAMETER', { uri });
+    }
+
+    try {
+      const tx: ContractTransactionResponse = await contract.setTokenURI(tokenId, uri);
+      const receipt = await tx.wait();
+
+      if (!receipt) {
+        throw new SDKError('Transaction receipt not available', 'TX_RECEIPT_ERROR');
+      }
+
+      return receipt.hash;
+    } catch (error: any) {
+      if (error instanceof SDKError) throw error;
+
+      this.logger.error('Failed to set token URI:', error);
+
+      if (error.code === 'CALL_EXCEPTION') {
+        throw new SDKError(
+          'Contract call failed. The token may not exist, you may not have permission to set URI, or the contract may be paused.',
+          'CONTRACT_CALL_FAILED',
+          { tokenId, uri, originalError: error.message }
+        );
+      }
+
+      if (error.code === 'INSUFFICIENT_FUNDS') {
+        throw new SDKError('Insufficient funds to pay for gas fees.', 'INSUFFICIENT_FUNDS', {
+          error: error.message,
+        });
+      }
+
+      if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+        throw new SDKError('Transaction was rejected by user.', 'USER_REJECTED', {
+          error: error.message,
+        });
+      }
+
+      throw new SDKError(
+        `Failed to set token URI: ${error.message || error}`,
+        'SET_TOKEN_URI_ERROR',
+        {
+          tokenId,
+          uri,
+          error: error.message || error,
+        }
+      );
+    }
+  }
+
+  /**
+   * Clear the individual URI for a specific token
+   * After clearing, the token will fall back to using baseURI + tokenId
+   * This frees up the storage slot used by the individual URI
+   *
+   * @param tokenId - Token ID to clear URI for
+   * @returns Transaction hash
+   */
+  @ensureContractDeployed
+  async clearTokenURI(tokenId: bigint): Promise<string> {
+    await this.ensureNetwork();
+    const contract = await this.getContract();
+
+    // Validate tokenId
+    if (!tokenId || tokenId === 0n) {
+      throw new SDKError('tokenId must be non-zero', 'INVALID_TOKEN_ID', { tokenId });
+    }
+
+    try {
+      const tx: ContractTransactionResponse = await contract.clearTokenURI(tokenId);
+      const receipt = await tx.wait();
+
+      if (!receipt) {
+        throw new SDKError('Transaction receipt not available', 'TX_RECEIPT_ERROR');
+      }
+
+      return receipt.hash;
+    } catch (error: any) {
+      if (error instanceof SDKError) throw error;
+
+      this.logger.error('Failed to clear token URI:', error);
+
+      if (error.code === 'CALL_EXCEPTION') {
+        throw new SDKError(
+          'Contract call failed. The token may not exist, you may not have permission to clear URI, or the contract may be paused.',
+          'CONTRACT_CALL_FAILED',
+          { tokenId, originalError: error.message }
+        );
+      }
+
+      if (error.code === 'INSUFFICIENT_FUNDS') {
+        throw new SDKError('Insufficient funds to pay for gas fees.', 'INSUFFICIENT_FUNDS', {
+          error: error.message,
+        });
+      }
+
+      if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+        throw new SDKError('Transaction was rejected by user.', 'USER_REJECTED', {
+          error: error.message,
+        });
+      }
+
+      throw new SDKError(
+        `Failed to clear token URI: ${error.message || error}`,
+        'CLEAR_TOKEN_URI_ERROR',
+        {
+          tokenId,
+          error: error.message || error,
+        }
+      );
+    }
+  }
+
+  /**
    * Get the current active DDCNFT contract address
    * @deprecated Use getContractAddress() instead
    */
