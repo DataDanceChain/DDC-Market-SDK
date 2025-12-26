@@ -521,6 +521,81 @@ console.log(`Unpause transaction: ${txHash}`);
 
 ---
 
+### 5.6 setTokenURI()
+
+Set an individual full URI for a specific token.
+
+**Method Signature:**
+
+```typescript
+public async setTokenURI(tokenId: bigint, uri: string): Promise<string>
+```
+
+**Parameters:**
+
+- `tokenId` (bigint): Token ID (must be non-zero)
+- `uri` (string): Full URI string for the token (cannot be empty)
+
+**Return Value:**
+
+- `Promise<string>`: Transaction hash
+
+**Example:**
+
+```typescript
+// Set individual URI for a specific token
+const txHash = await ddcnftManager.setTokenURI(
+  BigInt(1),
+  'https://api.example.com/metadata/token-1.json'
+);
+console.log(`Set token URI transaction: ${txHash}`);
+```
+
+**Notes:**
+
+- Contract address must be set first
+- Use only when the token needs completely different metadata from others
+- Each call consumes an additional storage slot (~20,000 gas) - not recommended for bulk use
+- After setting, the token will use this individual URI instead of baseURI + tokenId
+- Only contract owner can call this method
+
+---
+
+### 5.7 clearTokenURI()
+
+Clear the individual URI for a specific token.
+
+**Method Signature:**
+
+```typescript
+public async clearTokenURI(tokenId: bigint): Promise<string>
+```
+
+**Parameters:**
+
+- `tokenId` (bigint): Token ID (must be non-zero)
+
+**Return Value:**
+
+- `Promise<string>`: Transaction hash
+
+**Example:**
+
+```typescript
+// Clear individual URI for a specific token
+const txHash = await ddcnftManager.clearTokenURI(BigInt(1));
+console.log(`Clear token URI transaction: ${txHash}`);
+```
+
+**Notes:**
+
+- Contract address must be set first
+- After clearing, the token will fall back to using baseURI + tokenId
+- This frees up the storage slot used by the individual URI
+- Only contract owner can call this method
+
+---
+
 ## 6. Membership Contract Operations
 
 ### 6.1 mintMembership()
