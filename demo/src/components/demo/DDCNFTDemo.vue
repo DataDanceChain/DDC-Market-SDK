@@ -680,6 +680,22 @@ async function destroyNFT() {
   }
 }
 
+const testfile = ref<File | null>(null);
+const testSignMessage = async () => {
+  if (!nftManager.value) {
+    addLog('Please initialize Manager first', 'error');
+    return;
+  }
+  const result = await nftManager.value.uploadMetadataFile(testfile.value);
+};
+
+const handleFileChange = (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (file) {
+    testfile.value = file;
+  }
+};
+
 /**
  * Reset all state
  */
@@ -753,6 +769,12 @@ function reset() {
             {{ loading && currentStep === 0 ? 'Initializing...' : 'Initialize Manager' }}
           </button>
         </div>
+
+        <button @click="testSignMessage" :disabled="loading" class="btn btn-primary">
+          test sign message
+        </button>
+        <input type="file" @change="handleFileChange" />
+        <h2>testfile name: {{ testfile?.name }}</h2>
 
         <!-- Step 2: Deploy Factory -->
         <div v-if="currentStep >= 1" class="operation-section">

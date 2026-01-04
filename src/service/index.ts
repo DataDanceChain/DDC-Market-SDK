@@ -21,6 +21,7 @@ class HttpService {
       timeout: config?.timeout ?? Number(import.meta.env.API_TIMEOUT || 30000),
       headers: {
         'Content-Type': 'application/json',
+        ...(config?.headers || {}),
       },
       ...config,
     });

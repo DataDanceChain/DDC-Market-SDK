@@ -8,6 +8,7 @@ import {
   getAddress,
   Interface,
   ContractTransactionReceipt,
+  Signer,
 } from 'ethers';
 import type {
   DeploymentResult,
@@ -44,6 +45,8 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
   protected networkConfig?: DDCChainConfig;
   protected deployedContracts: Array<string> = [];
   public metadataUrl?: string;
+  protected authToken?: string; // auth jwt token for DDCNFTManager
+  protected authExpiresAt?: string; // auth jwt token expires at for DDCNFTManager
 
   protected readonly BYTES32_ZERO =
     '0x0000000000000000000000000000000000000000000000000000000000000000';
@@ -114,6 +117,16 @@ export abstract class BaseManager<TContractType extends 'nft' | 'membership'> {
    */
   public setContractAddress(address: string): void {
     this.contractAddress = address;
+  }
+
+  /**
+   * Get current signer instance
+   */
+  protected async getSigner(): Promise<Signer> {
+    if (!this.provider) {
+      throw new SDKError('Provider is not available', 'PROVIDER_NOT_AVAILABLE');
+    }
+    return await getSigner(this.provider, this.signerConfig);
   }
 
   // ==================== Common Public Methods ====================

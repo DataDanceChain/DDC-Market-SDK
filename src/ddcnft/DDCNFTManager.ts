@@ -9,10 +9,10 @@ import type { DeploymentResult, ManagerParams, ManagerConfig } from '../types';
 import { SDKError } from '../types';
 import { resolveProvider, getSigner, resolveWalletAddress } from '../utils';
 import { DDCNFT_ABI, DDCNFT_FACTORY_ABI } from '../abi';
-import { getDDCConfig } from '../service/api';
+import { authLogin, getDDCConfig, getNonce, uploadSts } from '../service/api';
 import DDCNFTFactoryJson from '../abi/DDCNFTFactory.json';
 import { BaseManager, ensureFactoryDeployed, ensureContractDeployed } from '../base';
-import { createContract } from '../utils';
+import { createContract, buildLoginMessage, signLoginMessage } from '../utils';
 
 /**
  * DDCNFT Management API
@@ -537,6 +537,87 @@ export class DDCNFTManager extends BaseManager<'nft'> {
   }
 
   /**
+   * Protected Auth API for internal use
+   * 1. Get nonce
+   * 2. Build login message
+   * 3. Sign login message
+   * 4. Login
+   * 5. Return jwt  token
+   * @returns Auth token
+   */
+  @ensureContractDeployed
+  protected async _authApi(): Promise<{
+    token: string;
+    tokenType: string;
+    expiresAt: string;
+    address: string;
+  }> {
+    const signer = await this.getSigner();
+    const address = await signer.getAddress();
+    console.log('address is:', address);
+    const result = await getNonce({ address });
+    if (!result.data) {
+      throw new SDKError('Failed to get nonce', 'GET_NONCE_ERROR', { result });
+    }
+    const { nonce, expiresAt } = result.data.data;
+    const message = buildLoginMessage({ address, nonce, expiresAt });
+    const { signature, walletAddress } = await signLoginMessage(signer, message);
+    const res = await authLogin({ address, message, signature });
+    if (!res.data) {
+      throw new SDKError('Failed to login', 'AUTH_LOGIN_ERROR', { result });
+    }
+    console.log('authLogin result is:', res);
+    const { expiresAt: expiresAtString, token } = res.data.data;
+    this.authToken = token;
+    this.authExpiresAt = expiresAtString;
+    return { ...res.data.data };
+  }
+
+  /**
+   * Upload metadata file to DDCNFT contract
+   * @param file - File to upload
+   * @returns Metadata file URI
+   */
+  public async uploadMetadataFile(file: File): Promise<{ fileUrl: string; fileId: string }> {
+    if (!this.authToken || new Date(this.authExpiresAt || '').valueOf() <= Date.now()) {
+      this.authToken = '';
+      this.authExpiresAt = '';
+      await this._authApi();
+    }
+
+    const signer = await this.getSigner();
+    const address = await signer.getAddress();
+    const contractAddress = this.getContractAddress()?.toLowerCase() || '';
+    //
+    const ext = file.name.split('.').pop() || '';
+    const result = await uploadSts(
+      {
+        address,
+        contract: contractAddress,
+        ext,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${this.authToken}`,
+        },
+      }
+    );
+    console.log('uploadMetadataFile result is:', result);
+    const { fileId, objectUrlHint } = result.data?.data || {};
+    return { fileUrl: objectUrlHint || '', fileId: fileId || '' };
+  }
+
+  public async updateMetadata(description: string): Promise<string> {
+    if (!this.authToken || new Date(this.authExpiresAt || '').valueOf() <= Date.now()) {
+      this.authToken = '';
+      this.authExpiresAt = '';
+      await this._authApi();
+    }
+
+    return '';
+  }
+
+  /**
    * Set an individual full URI for a specific token
    * Use only when the token needs completely different metadata from others
    * Each call consumes an additional storage slot (~20,000 gas) - not recommended for bulk use
@@ -561,6 +642,9 @@ export class DDCNFTManager extends BaseManager<'nft'> {
     }
 
     try {
+      // step 1: auth api
+      // await this._authApi(tokenId, uri);
+      // step 2: set token uri
       const tx: ContractTransactionResponse = await contract.setTokenURI(tokenId, uri);
       const receipt = await tx.wait();
 
