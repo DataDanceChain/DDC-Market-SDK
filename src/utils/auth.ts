@@ -29,7 +29,7 @@ export const signLoginMessage = async function (signer: Signer, message: string)
 };
 
 export const uplloadOssStsFile = async function (
-  file: File,
+  file: File | Record<string, any>,
   config: {
     fileName: string;
     accessKeyId: string;
@@ -49,20 +49,25 @@ export const uplloadOssStsFile = async function (
     // refreshSTSToken: true,
   });
 
+  let buffer: Buffer;
+  let contentType: string | undefined;
+
   // convert File to Buffer
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  console.log(
-    'uplloadOssStsFile ossClient is:',
-    accessKeyId,
-    accessKeySecret,
-    stsToken,
-    region,
-    fileName,
-    bucket,
-    ossClient,
-    buffer
-  );
-  const result = await ossClient.put(fileName, buffer);
+  if (file instanceof File) {
+    // 处理 File 对象
+    const arrayBuffer = await file.arrayBuffer();
+    buffer = Buffer.from(arrayBuffer);
+    contentType = file.type; // 使用原始文件的 MIME 类型
+  } else {
+    // 处理 JSON 对象：转换为 JSON 字符串，再转为 Buffer
+    const jsonString = JSON.stringify(file, null, 2); // 格式化 JSON，可选
+    buffer = Buffer.from(jsonString, 'utf-8');
+    contentType = 'application/json'; // 设置 JSON 的 Content-Type
+  }
+  const result = await ossClient.put(fileName, buffer, {
+    headers: {
+      'Content-Type': contentType,
+    },
+  });
   return result;
 };

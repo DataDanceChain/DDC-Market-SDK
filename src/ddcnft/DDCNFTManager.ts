@@ -574,24 +574,21 @@ export class DDCNFTManager extends BaseManager<'nft'> {
     return { ...res.data.data };
   }
 
-  /**
-   * Upload metadata file to DDCNFT contract
-   * @param file - File to upload
-   * @returns Metadata file URI
-   */
-  public async uploadMetadataFile(file: File): Promise<{ fileUrl: string; fileName: string }> {
-    if (!this.authToken || new Date(this.authExpiresAt || '').valueOf() <= Date.now()) {
-      this.authToken = '';
-      this.authExpiresAt = '';
-      await this._authApi();
-    }
-
+  private async getOssStsClientConfig(ext: string): Promise<{
+    accessKeyId: string;
+    accessKeySecret: string;
+    stsToken: string;
+    region: string;
+    bucket: string;
+    fileName: string;
+    objectUrlHint: string;
+  }> {
     const signer = await this.getSigner();
     const address = await signer.getAddress();
     const contractAddress = this.getContractAddress()?.toLowerCase() || '';
     //
-    const ext = file.name.split('.').pop() || '';
-    // query oss sts token
+    // const ext = file.name.split('.').pop() || '';
+    // query oss sts client config
     const result = await uploadSts(
       {
         address,
@@ -607,17 +604,43 @@ export class DDCNFTManager extends BaseManager<'nft'> {
     console.log('uploadMetadataFile result is:', result);
     const { fileId, objectUrlHint, callback, sts, region, objectKey } = result.data?.data || {};
     const { accessKeyId, accessKeySecret, securityToken } = sts || {};
-    // const fileName = `${fileId}.${ext}`;
     const keys = objectKey?.split('/');
     const fileName =
       keys && keys.length > 1 ? keys.slice(1).join('/') : objectKey || `${fileId}.${ext}`;
     const bucket = `${keys?.[0]}` || '';
-    // upload file to oss
+    return {
+      accessKeyId: accessKeyId || '',
+      accessKeySecret: accessKeySecret || '',
+      stsToken: securityToken || '',
+      region: region || '',
+      bucket: bucket || '',
+      fileName: fileName || '',
+      objectUrlHint: objectUrlHint || '',
+    };
+  }
+
+  /**
+   * Upload metadata file to DDCNFT contract
+   * @param file - File to upload
+   * @returns Metadata file URI
+   */
+  public async uploadMetadataFile(file: File): Promise<{ fileUrl: string; fileName: string }> {
+    if (!this.authToken || new Date(this.authExpiresAt || '').valueOf() <= Date.now()) {
+      this.authToken = '';
+      this.authExpiresAt = '';
+      await this._authApi();
+    }
+
+    const ext = file.name.split('.').pop() || '';
+    const { accessKeyId, accessKeySecret, stsToken, region, bucket, fileName, objectUrlHint } =
+      await this.getOssStsClientConfig(ext);
+
+    // call api to upload file to oss
     const ossResult: PutObjectResult = await uplloadOssStsFile(file, {
       fileName: fileName,
       accessKeyId: accessKeyId || '',
       accessKeySecret: accessKeySecret || '',
-      stsToken: securityToken || '',
+      stsToken: stsToken || '',
       region: region || '',
       bucket: bucket || '',
     });
@@ -626,14 +649,54 @@ export class DDCNFTManager extends BaseManager<'nft'> {
     return { fileUrl: objectUrlHint || '', fileName: name || '' };
   }
 
-  public async updateMetadata(description: string): Promise<string> {
+  /**
+   * Update metadata for a specific token
+   * @param name - Name of the token
+   * @param description - Description of the token
+   * @param image - Image of the token
+   * @param customMetadata - Custom metadata for the token
+   * @param autoSetTokenId - Auto set token id if > -1, will interact custom tokenURI with contract
+   * @returns Transaction hash
+   */
+  public async updateCustomMetadata(
+    defaultConfig: {
+      name: string;
+      description: string;
+      image: string;
+    },
+    customMetadata: Record<string, any>,
+    autoSetTokenId: number = -1
+  ): Promise<{ fileUrl: string; fileName: string }> {
     if (!this.authToken || new Date(this.authExpiresAt || '').valueOf() <= Date.now()) {
       this.authToken = '';
       this.authExpiresAt = '';
       await this._authApi();
     }
 
-    return '';
+    const ext = 'json';
+    const { accessKeyId, accessKeySecret, stsToken, region, bucket, fileName, objectUrlHint } =
+      await this.getOssStsClientConfig(ext);
+
+    const metadata = {
+      ...customMetadata,
+      ...defaultConfig,
+    };
+    // call api to upload file to oss
+    const ossResult: PutObjectResult = await uplloadOssStsFile(metadata, {
+      fileName: fileName,
+      accessKeyId: accessKeyId || '',
+      accessKeySecret: accessKeySecret || '',
+      stsToken: stsToken || '',
+      region: region || '',
+      bucket: bucket || '',
+    });
+    console.log('uploadMetadataFile ossResult is:', ossResult);
+    const { name } = ossResult;
+
+    if (autoSetTokenId > 0) {
+      await this.setTokenURI(BigInt(autoSetTokenId), objectUrlHint || '');
+    }
+    return { fileUrl: objectUrlHint || '', fileName: name || '' };
   }
 
   /**
@@ -646,7 +709,7 @@ export class DDCNFTManager extends BaseManager<'nft'> {
    * @returns Transaction hash
    */
   @ensureContractDeployed
-  async setTokenURI(tokenId: bigint, uri: string): Promise<string> {
+  public async setTokenURI(tokenId: bigint, uri: string): Promise<string> {
     await this.ensureNetwork();
     const contract = await this.getContract();
 
