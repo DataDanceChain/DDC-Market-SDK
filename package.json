@@ -61,12 +61,14 @@
   },
   "packageManager": "pnpm@10.15.1",
   "devDependencies": {
+    "@types/ali-oss": "^6.16.13",
     "@types/node": "^22.10.5",
     "typescript": "^5.7.2",
     "vite": "^6.0.11",
     "vite-plugin-dts": "^4.5.0"
   },
   "dependencies": {
+    "ali-oss": "^6.23.0",
     "axios": "^1.7.9",
     "ethers": "^6.13.4"
   },

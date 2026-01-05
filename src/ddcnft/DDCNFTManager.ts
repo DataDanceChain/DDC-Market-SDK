@@ -12,7 +12,8 @@ import { DDCNFT_ABI, DDCNFT_FACTORY_ABI } from '../abi';
 import { authLogin, getDDCConfig, getNonce, uploadSts } from '../service/api';
 import DDCNFTFactoryJson from '../abi/DDCNFTFactory.json';
 import { BaseManager, ensureFactoryDeployed, ensureContractDeployed } from '../base';
-import { createContract, buildLoginMessage, signLoginMessage } from '../utils';
+import { createContract, buildLoginMessage, signLoginMessage, uplloadOssStsFile } from '../utils';
+import { PutObjectResult } from 'ali-oss';
 
 /**
  * DDCNFT Management API
@@ -578,7 +579,7 @@ export class DDCNFTManager extends BaseManager<'nft'> {
    * @param file - File to upload
    * @returns Metadata file URI
    */
-  public async uploadMetadataFile(file: File): Promise<{ fileUrl: string; fileId: string }> {
+  public async uploadMetadataFile(file: File): Promise<{ fileUrl: string; fileName: string }> {
     if (!this.authToken || new Date(this.authExpiresAt || '').valueOf() <= Date.now()) {
       this.authToken = '';
       this.authExpiresAt = '';
@@ -590,6 +591,7 @@ export class DDCNFTManager extends BaseManager<'nft'> {
     const contractAddress = this.getContractAddress()?.toLowerCase() || '';
     //
     const ext = file.name.split('.').pop() || '';
+    // query oss sts token
     const result = await uploadSts(
       {
         address,
@@ -603,8 +605,25 @@ export class DDCNFTManager extends BaseManager<'nft'> {
       }
     );
     console.log('uploadMetadataFile result is:', result);
-    const { fileId, objectUrlHint } = result.data?.data || {};
-    return { fileUrl: objectUrlHint || '', fileId: fileId || '' };
+    const { fileId, objectUrlHint, callback, sts, region, objectKey } = result.data?.data || {};
+    const { accessKeyId, accessKeySecret, securityToken } = sts || {};
+    // const fileName = `${fileId}.${ext}`;
+    const keys = objectKey?.split('/');
+    const fileName =
+      keys && keys.length > 1 ? keys.slice(1).join('/') : objectKey || `${fileId}.${ext}`;
+    const bucket = `${keys?.[0]}` || '';
+    // upload file to oss
+    const ossResult: PutObjectResult = await uplloadOssStsFile(file, {
+      fileName: fileName,
+      accessKeyId: accessKeyId || '',
+      accessKeySecret: accessKeySecret || '',
+      stsToken: securityToken || '',
+      region: region || '',
+      bucket: bucket || '',
+    });
+    console.log('uploadMetadataFile ossResult is:', ossResult);
+    const { url: originOssUrl, name } = ossResult;
+    return { fileUrl: objectUrlHint || '', fileName: name || '' };
   }
 
   public async updateMetadata(description: string): Promise<string> {

@@ -1,4 +1,5 @@
 import { Signer } from 'ethers';
+import OSS from 'ali-oss';
 
 export const buildLoginMessage = function (params: {
   address: string;
@@ -8,7 +9,7 @@ export const buildLoginMessage = function (params: {
 }) {
   const { address, nonce, expiresAt, domain } = params;
   const issuedAt = new Date().toISOString();
-  const safeDomain = domain || window.location.host;
+  const safeDomain = domain || window?.location?.host || '';
 
   return [
     'DDC Market SDK Sign-In',
@@ -25,4 +26,43 @@ export const signLoginMessage = async function (signer: Signer, message: string)
   const walletAddress = await signer.getAddress();
 
   return { signature, walletAddress };
+};
+
+export const uplloadOssStsFile = async function (
+  file: File,
+  config: {
+    fileName: string;
+    accessKeyId: string;
+    accessKeySecret: string;
+    stsToken: string;
+    region: string;
+    bucket: string;
+  }
+) {
+  const { accessKeyId, accessKeySecret, stsToken, region, fileName, bucket } = config;
+  const ossClient = new OSS({
+    accessKeyId,
+    accessKeySecret,
+    region,
+    stsToken,
+    bucket,
+    // refreshSTSToken: true,
+  });
+
+  // convert File to Buffer
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  console.log(
+    'uplloadOssStsFile ossClient is:',
+    accessKeyId,
+    accessKeySecret,
+    stsToken,
+    region,
+    fileName,
+    bucket,
+    ossClient,
+    buffer
+  );
+  const result = await ossClient.put(fileName, buffer);
+  return result;
 };
