@@ -686,7 +686,32 @@ const testSignMessage = async () => {
     addLog('Please initialize Manager first', 'error');
     return;
   }
-  const result = await nftManager.value.uploadMetadataFile(testfile.value);
+  const result = await nftManager.value.uploadMetadataFile(testfile.value as File);
+  console.log('result is:', result);
+  return result;
+};
+
+const testUpdateCustomMetadata = async () => {
+  if (!nftManager.value) {
+    addLog('Please initialize Manager first', 'error');
+    return;
+  }
+  const result = await testSignMessage();
+  const { fileUrl, fileName } = result as { fileUrl: string; fileName: string };
+  const res = await nftManager.value.updateCustomMetadata(
+    {
+      name: 'testcy2TNFT_Metadata',
+      description: 'testcy2TNFT_Metadata_Description',
+      image: fileUrl,
+    },
+    {
+      contract: '0x1f7a9d34768e052b57783dc2ac2e7ff5125080bd',
+      test: 'testcy2TNFT',
+      fileName: fileName,
+    },
+    6
+  );
+  console.log('testUpdateCustomMetadata  result is:', res);
 };
 
 const handleFileChange = (event: Event) => {
@@ -770,7 +795,7 @@ function reset() {
           </button>
         </div>
 
-        <button @click="testSignMessage" :disabled="loading" class="btn btn-primary">
+        <button @click="testUpdateCustomMetadata" :disabled="loading" class="btn btn-primary">
           test sign message
         </button>
         <input type="file" @change="handleFileChange" />
