@@ -596,6 +596,182 @@ console.log(`Clear token URI transaction: ${txHash}`);
 
 ---
 
+## Managing metadata and relative files on DDC OSS service
+
+### 5.8 uploadMetadataFile()
+
+Upload metadata file (e.g., image, video) to OSS storage for DDCNFT contract.
+
+**Method Signature:**
+
+```typescript
+public async uploadMetadataFile(file: File): Promise<{ fileUrl: string; fileName: string }>
+```
+
+**Parameters:**
+
+- `file` (File): File object to upload (e.g., image, video, or other media files)
+
+**Return Value:**
+
+- `Promise<{ fileUrl: string; fileName: string }>`
+  - `fileUrl` (string): URL of the uploaded file (OSS object URL hint)
+  - `fileName` (string): Name of the uploaded file
+
+**Example:**
+
+```typescript
+// Handle file input from user
+const handleFileChange = (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (file) {
+    uploadFile(file);
+  }
+};
+
+// Upload file
+const uploadFile = async (file: File) => {
+  try {
+    const result = await ddcnftManager.uploadMetadataFile(file);
+    console.log(`File uploaded: ${result.fileUrl}`);
+    console.log(`File name: ${result.fileName}`);
+    // Use fileUrl in metadata or setTokenURI
+  } catch (error) {
+    console.error('Upload failed:', error);
+  }
+};
+```
+
+**Notes:**
+
+- Contract address must be set first
+- Automatically handles authentication token refresh if expired
+- File extension is automatically extracted from file name
+- Uploaded file is stored in OSS (Object Storage Service) provided by DDC
+- The returned `fileUrl` can be used in metadata JSON or directly set as token URI
+- Supported file types depend on OSS configuration (typically images, videos, documents)
+
+---
+
+### 5.9 updateCustomMetadata()
+
+Create or update custom metadata JSON for a token and optionally set it as token URI.
+
+**Method Signature:**
+
+```typescript
+public async updateCustomMetadata(
+  defaultConfig: {
+    name: string;
+    description: string;
+    image: string;
+  },
+  customMetadata: Record<string, any>,
+  autoSetTokenId: number = -1
+): Promise<{ fileUrl: string; fileName: string }>
+```
+
+**Parameters:**
+
+- `defaultConfig` (object): Default metadata fields
+  - `name` (string): Name of the metadata/NFT
+  - `description` (string): Description of the metadata/NFT
+  - `image` (string): Image URL (typically from `uploadMetadataFile()` result)
+- `customMetadata` (Record<string, any>): Custom metadata fields (any additional properties)
+- `autoSetTokenId` (number, optional): Token ID to automatically set token URI. If > 0, will call `setTokenURI()` automatically. Default: -1 (no automatic setting)
+
+**Return Value:**
+
+- `Promise<{ fileUrl: string; fileName: string }>`
+  - `fileUrl` (string): URL of the uploaded metadata JSON file
+  - `fileName` (string): Name of the uploaded metadata file
+
+**Example:**
+
+```typescript
+// First, upload an image file
+const imageResult = await ddcnftManager.uploadMetadataFile(imageFile);
+const { fileUrl: imageUrl, fileName: imageFileName } = imageResult;
+
+// Then, create metadata with default and custom fields
+const metadataResult = await ddcnftManager.updateCustomMetadata(
+  {
+    name: 'My Awesome NFT',
+    description: 'This is a description of my NFT',
+    image: imageUrl, // Use the uploaded image URL
+  },
+  {
+    // Custom metadata fields
+    contract: '0x1f7a9d34768e052b57783dc2ac2e7ff5125080bd',
+    attributes: [
+      { trait_type: 'Color', value: 'Blue' },
+      { trait_type: 'Rarity', value: 'Legendary' },
+    ],
+    external_url: 'https://example.com/nft/1',
+    fileName: imageFileName,
+  },
+  6 // Automatically set token URI for token ID 6
+);
+
+console.log(`Metadata uploaded: ${metadataResult.fileUrl}`);
+console.log(`Metadata file name: ${metadataResult.fileName}`);
+```
+
+**Complete Workflow Example:**
+
+```typescript
+// Complete workflow: Upload image and create metadata
+const handleCreateNFTMetadata = async (imageFile: File, tokenId: number) => {
+  if (!ddcnftManager) {
+    console.error('Manager not initialized');
+    return;
+  }
+
+  try {
+    // Step 1: Upload image file
+    const imageResult = await ddcnftManager.uploadMetadataFile(imageFile);
+    console.log('Image uploaded:', imageResult.fileUrl);
+
+    // Step 2: Create and upload metadata JSON
+    const metadataResult = await ddcnftManager.updateCustomMetadata(
+      {
+        name: 'My NFT #' + tokenId,
+        description: 'A unique NFT with custom metadata',
+        image: imageResult.fileUrl,
+      },
+      {
+        // Custom attributes
+        attributes: [
+          { trait_type: 'Power', value: 100 },
+          { trait_type: 'Speed', value: 85 },
+        ],
+        creator: '0x...',
+        creationDate: new Date().toISOString(),
+      },
+      tokenId // Automatically set as token URI
+    );
+
+    console.log('Metadata created and set:', metadataResult.fileUrl);
+    console.log(`Token ${tokenId} now points to: ${metadataResult.fileUrl}`);
+  } catch (error) {
+    console.error('Failed to create metadata:', error);
+  }
+};
+```
+
+**Notes:**
+
+- Contract address must be set first
+- Automatically handles authentication token refresh if expired
+- Metadata is merged: `customMetadata` properties are merged with `defaultConfig` (customMetadata takes precedence for overlapping keys)
+- Metadata is uploaded as JSON file to OSS
+- If `autoSetTokenId > 0`, automatically calls `setTokenURI()` to link the metadata to the token
+- If `autoSetTokenId <= 0`, only uploads metadata without setting token URI (you can manually call `setTokenURI()` later)
+- The metadata JSON follows standard NFT metadata format (OpenSea, etc.)
+- Custom metadata can include any additional properties beyond name, description, and image
+
+---
+
 ## 6. Membership Contract Operations
 
 ### 6.1 mintMembership()

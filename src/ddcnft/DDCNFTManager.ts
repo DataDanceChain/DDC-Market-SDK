@@ -622,7 +622,7 @@ export class DDCNFTManager extends BaseManager<'nft'> {
   /**
    * Upload metadata file to DDCNFT contract
    * @param file - File to upload
-   * @returns Metadata file URI
+   * @returns Metadata file URI, fileName
    */
   public async uploadMetadataFile(file: File): Promise<{ fileUrl: string; fileName: string }> {
     if (!this.authToken || new Date(this.authExpiresAt || '').valueOf() <= Date.now()) {
@@ -651,12 +651,18 @@ export class DDCNFTManager extends BaseManager<'nft'> {
 
   /**
    * Update metadata for a specific token
-   * @param name - Name of the token
-   * @param description - Description of the token
-   * @param image - Image of the token
+   * @param defaultConfig - Default metadata for the token
+   *    {
+   *      name: string; name of metadata file
+   *      description: string; description of metadata file
+   *      image: string; image of metadata file
+   *    }
    * @param customMetadata - Custom metadata for the token
+   *    {
+   *      [key: string]: any;
+   *    }
    * @param autoSetTokenId - Auto set token id if > -1, will interact custom tokenURI with contract
-   * @returns Transaction hash
+   * @returns Metadata file URI, fileName
    */
   public async updateCustomMetadata(
     defaultConfig: {
