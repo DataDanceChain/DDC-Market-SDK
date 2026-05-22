@@ -37,13 +37,16 @@ import {
   getToken,
   getNftList,
   setUserHash,
+  unBindUserHash,
   queryUserMerchantList,
   queryUserAuthorizationList,
+  getUserHashList,
+  getNftDetail,
 } from '../service/api/merchant';
 import { buildMerchantAuthSignature } from '../utils/auth';
 import { AUTHORIZATION_ABI, IDDCNFT_AUTHORIZATION_ABI } from '../abi';
 import Base from './Base';
-import { signAdminToken } from './appAdminTokenTool';
+import { signAdminToken, signUserToken } from './appAdminTokenTool';
 
 const DEFAULT_MIN_AUTH_DURATION_SECONDS = 60;
 const DEFAULT_MAX_AUTH_DURATION_SECONDS = 365 * 24 * 60 * 60;
@@ -57,7 +60,6 @@ class Merchant extends Base {
   protected static instance: Merchant | null = null;
 
   protected merchantInfo?: MerchantInfo;
-  protected authorizationContractAddress?: string;
   protected minAuthDurationSeconds = DEFAULT_MIN_AUTH_DURATION_SECONDS;
   protected maxAuthDurationSeconds = DEFAULT_MAX_AUTH_DURATION_SECONDS;
 
@@ -65,11 +67,10 @@ class Merchant extends Base {
     super(config);
 
     if (config?.provider && config?.network) {
-      const { provider, network, signerConfig, authorizationContractAddress } = config;
+      const { provider, network, signerConfig } = config;
       this.provider = provider;
       this.signerConfig = signerConfig;
       this.networkConfig = network;
-      this.authorizationContractAddress = authorizationContractAddress;
 
       this.logger.info(`Initializing Merchant}`, {
         hasFactory: !!config.factoryAddress,
@@ -99,14 +100,17 @@ class Merchant extends Base {
   }
 
   protected requireAuthorizationContractAddress(): string {
-    if (!this.authorizationContractAddress) {
+    if (!this.merchantInfo?.authorization_contract_address) {
       throw new SDKError(
         'Authorization contract address is not configured. Provide authorizationContractAddress in Merchant.init() params or ensure getDDCConfig returns authorization_address.',
         'MISSING_AUTHORIZATION_CONTRACT'
       );
     }
-    validateAddress(this.authorizationContractAddress, 'Authorization contract address');
-    return this.authorizationContractAddress;
+    validateAddress(
+      this.merchantInfo?.authorization_contract_address,
+      'Authorization contract address'
+    );
+    return this.merchantInfo?.authorization_contract_address;
   }
 
   protected getAuthorizationContract(runner: Signer | Provider): Contract {
@@ -123,11 +127,11 @@ class Merchant extends Base {
   }
 
   public async loadDurationLimits(): Promise<void> {
-    if (!this.authorizationContractAddress || !this.provider) return;
+    if (!this.merchantInfo?.authorization_contract_address || !this.provider) return;
 
     try {
       const contract = new Contract(
-        this.authorizationContractAddress,
+        this.merchantInfo?.authorization_contract_address,
         AUTHORIZATION_ABI,
         this.provider
       );
@@ -227,7 +231,7 @@ class Merchant extends Base {
   protected parseAuthorizedEvent(
     receipt: { logs: Array<{ topics: readonly string[]; data: string }> },
     expectedSiteId: string
-  ): bigint {
+  ): number {
     const authInterface = new Interface(IDDCNFT_AUTHORIZATION_ABI);
 
     for (const log of receipt.logs) {
@@ -241,7 +245,7 @@ class Merchant extends Base {
         const siteId = String(parsed.args.siteId);
         if (siteId.toLowerCase() !== expectedSiteId.toLowerCase()) continue;
 
-        return BigInt(parsed.args.expiresAt);
+        return Number(parsed.args.expiresAt);
       } catch {
         continue;
       }
@@ -259,8 +263,7 @@ class Merchant extends Base {
       });
     }
 
-    const { walletAddress, provider, signer, debug, appId, authorizationContractAddress } =
-      merchantConfig;
+    const { walletAddress, provider, signer, debug, appId } = merchantConfig;
 
     const resolvedWalletAddress = resolveWalletAddress(provider, walletAddress, signer);
 
@@ -271,7 +274,7 @@ class Merchant extends Base {
     }
 
     const ddcConfig = result.data.data as DDCConfigData;
-    const { network, nft_factory_address, authorization_address } = ddcConfig;
+    const { network, nft_factory_address, authorization_contract_address } = ddcConfig;
 
     const resolvedProvider = resolveProvider(provider, network);
 
@@ -290,7 +293,6 @@ class Merchant extends Base {
       factoryAddress: nft_factory_address,
       signerConfig: signer,
       appId,
-      authorizationContractAddress: authorizationContractAddress || authorization_address,
     };
 
     const instance = new Merchant(config);
@@ -308,12 +310,13 @@ class Merchant extends Base {
       siteName: name || '',
       logo: logo || '',
       status: '',
+      authorization_contract_address,
     };
     return instance;
   }
 
   /**
-   * 用户对当前商户站点发起链上授权，并可选绑定隐私 hash。
+   * 用户对当前商户站点发起链上授权
    * 调用 IDDCNFTAuthorization.authorize(bytes32 siteId, uint64 durationSeconds)。
    */
   public async userAuth(
@@ -446,19 +449,26 @@ class Merchant extends Base {
       walletAddress: resolvedWalletAddress,
       siteId,
       authorized: result.authorized,
-      expiresAt: BigInt(result.expiresAt),
-      remainingSeconds: BigInt(result.remainingSeconds),
+      expiresAt: Number(result.expiresAt),
+      remainingSeconds: Number(result.remainingSeconds),
     };
   }
 
   // 增加绑定 hash 和 钱包地址的方法, 让用户自行绑定
-  public async bindUserHash(hash: string, walletAddress: string): Promise<boolean> {
-    const hashResult = await setUserHash({
-      address: walletAddress,
-      hash,
+  public async bindUserHash(hash: string, walletAddress: string, secret: string): Promise<boolean> {
+    const jwt = await signUserToken({
+      secret,
+      wallet: walletAddress,
     });
 
-    const success = hashResult.data?.data?.result === true;
+    const hashResult = await setUserHash(
+      {
+        hash,
+      },
+      { headers: { Authorization: `Bearer ${jwt.token}` } }
+    );
+
+    const success = hashResult.data?.data === true;
     if (!success) {
       this.logger.warn('Failed to bind user hash', {
         walletAddress,
@@ -468,10 +478,73 @@ class Merchant extends Base {
     return success;
   }
 
+  // 解除绑定 hash 和 钱包地址的方法
+  public async unbindUserHash(
+    hash: string,
+    walletAddress: string,
+    secret: string
+  ): Promise<boolean> {
+    const jwt = await signUserToken({
+      secret,
+      wallet: walletAddress,
+    });
+
+    const hashResult = await unBindUserHash(
+      {
+        hash,
+      },
+      { headers: { Authorization: `Bearer ${jwt.token}` } }
+    );
+
+    const success = hashResult.data?.data === true;
+    if (!success) {
+      this.logger.warn('Failed to unbind user hash', {
+        walletAddress,
+      });
+    }
+
+    return success;
+  }
+
+  // 解除绑定 hash 和 钱包地址的方法
+  public async queryUserHashList(
+    page: {
+      page: number;
+      pageSize: number;
+    },
+    walletAddress: string,
+    secret: string
+  ): Promise<{
+    page: number;
+    pageSize: number;
+    total: number;
+    rows: Array<{
+      hash: string;
+      createdAt: string;
+    }>;
+  } | null> {
+    const jwt = await signUserToken({
+      secret,
+      wallet: walletAddress,
+    });
+
+    const hashResult = await getUserHashList(page, {
+      headers: { Authorization: `Bearer ${jwt.token}` },
+    });
+
+    // const success = hashResult.data?.data === true;
+    // if (!success) {
+    //   this.logger.warn('Failed to query user list', {
+    //     walletAddress,
+    //   });
+    // }
+
+    return hashResult.data?.data || null;
+  }
+
   /**
-   * 1. 获取商户 access token。
-   * 2. 调用 getNftList 通过
-   * 使用 HMAC-SHA256 签名向 /auth/merchant/token 换取 token。
+   * 1. 获取商户 access token。 使用 HMAC-SHA256 签名向 /auth/merchant/token 换取 token。
+   * 2. getNftList 获取合约 nft 列表
    */
   public async queryTokenList(
     appSecret: string,
@@ -523,6 +596,57 @@ class Merchant extends Base {
   }
 
   /**
+   * 1. 获取商户 access token。 使用 HMAC-SHA256 签名向 /auth/merchant/token 换取 token。
+   * 2. getNftList 获取合约 nft 列表
+   */
+  public async queryNftTokenDetail(
+    appSecret: string,
+    address: string,
+    contractAddress: string,
+    tokenId: string
+  ): Promise<{
+    token: string; // "0x...",
+    tokenId: string; // "216",
+    metadata: {
+      name: string; // "",
+      image: string; // ""
+    };
+  } | null> {
+    const appId = this.merchantInfo?.appId;
+    if (!appId) {
+      throw new SDKError(
+        'Merchant appId is not available. Call Merchant.init() first.',
+        'MERCHANT_NOT_INITIALIZED'
+      );
+    }
+
+    const signature = await buildMerchantAuthSignature({ appId, appSecret });
+    const result = await getToken(signature);
+
+    if (!result.success) {
+      throw new SDKError('Failed to get merchant token', 'GET_TOKEN_ERROR', {
+        error: result.error,
+      });
+    }
+
+    const tokenData = result.data?.data;
+    if (!tokenData?.accessToken) {
+      throw new SDKError('Token data is empty in response', 'GET_TOKEN_ERROR', {
+        response: result.data,
+      });
+    }
+
+    const res = await getNftDetail({
+      address,
+      accessToken: tokenData.accessToken,
+      contractAddress,
+      tokenId,
+    });
+
+    return res.data?.data || null;
+  }
+
+  /**
    * 用户接口查询可授权商户列表（App 专用接口）
    * 通过 HMAC-SHA256 签名换取 accessToken，再以 Bearer 方式调用
    * POST /app/user/merchants/list。
@@ -532,7 +656,8 @@ class Merchant extends Base {
    * @param pageSize  - 每页条数，默认 10，最大 20
    */
   public async queryAppMechants(
-    appSecret: string,
+    wallet: string,
+    secret: string,
     page = 0,
     pageSize = 10
   ): Promise<{
@@ -557,8 +682,9 @@ class Merchant extends Base {
       );
     }
 
-    // ttlSec: 9999999
-    const jwt = await signAdminToken({ secret: appSecret });
+    const jwt = await signUserToken({ secret, wallet });
+
+    console.log('debug queryAppMechants token', new Date(), JSON.stringify(jwt));
 
     const res = await queryUserMerchantList(
       { page, pageSize },
@@ -577,7 +703,8 @@ class Merchant extends Base {
    * @param pageSize  - 每页条数，默认 10，最大 20
    */
   public async queryAppAuthorizedMechants(
-    appSecret: string,
+    wallet: string,
+    secret: string,
     page = 0,
     pageSize = 10
   ): Promise<{
@@ -601,7 +728,9 @@ class Merchant extends Base {
       );
     }
 
-    const jwt = await signAdminToken({ secret: appSecret });
+    const jwt = await signUserToken({ secret, wallet });
+
+    console.log('debug queryAppAuthorizedMechants token', new Date(), jwt.token);
 
     const res = await queryUserAuthorizationList(
       { page, pageSize },

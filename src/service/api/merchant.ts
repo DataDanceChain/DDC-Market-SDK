@@ -104,9 +104,6 @@ export async function getToken(
  */
 export async function setUserHash(
   data: {
-    /** 商户钱包地址 */
-    address: string;
-
     /** 隐私hash */
     hash: string;
   },
@@ -114,8 +111,66 @@ export async function setUserHash(
 ): Promise<
   ApiResponse<{
     code: number;
+    data: boolean; // true  成功   "result": false  失败;
+    message: string; // 'ok'
+  }>
+> {
+  return requestPost<{
+    code: number;
+    data: boolean;
+    message: string;
+  }>(`/user/hash`, data, config);
+}
+
+/**
+ * unBindUserHash
+ * 钱包地址取消关联隐私hash
+ * @path POST /user/hash
+ */
+export async function unBindUserHash(
+  data: {
+    /** 隐私hash */
+    hash: string;
+  },
+  config?: ApiRequestConfig
+): Promise<
+  ApiResponse<{
+    code: number;
+    data: boolean; // true  成功   "result": false  失败;
+    message: string; // 'ok'
+  }>
+> {
+  return requestPost<{
+    code: number;
+    data: boolean;
+    message: string;
+  }>(`/user/hash/unbind`, data, config);
+}
+
+/**
+ * getUserHashList
+ * 钱包地址已关联的隐私hash列表
+ * @path POST /user/hashes/list
+ */
+export async function getUserHashList(
+  page: {
+    /** 页数 */
+    page: number;
+    /** 页码大小 */
+    pageSize: number;
+  },
+  config?: ApiRequestConfig
+): Promise<
+  ApiResponse<{
+    code: number;
     data: {
-      result: boolean; // true  成功   "result": false  失败
+      page: number;
+      pageSize: number;
+      total: number;
+      rows: Array<{
+        hash: string;
+        createdAt: string;
+      }>;
     };
     message: string; // 'ok'
   }>
@@ -123,10 +178,16 @@ export async function setUserHash(
   return requestPost<{
     code: number;
     data: {
-      result: boolean;
+      page: number;
+      pageSize: number;
+      total: number;
+      rows: Array<{
+        hash: string;
+        createdAt: string;
+      }>;
     };
     message: string;
-  }>(`/user/hash`, data, config);
+  }>(`/user/hashes/list`, page, config);
 }
 
 /**
@@ -182,6 +243,63 @@ export async function getNftList(
       Authorization: `Bearer ${params.accessToken}`,
     },
   });
+}
+
+/**
+ * getNftList
+ * 商户查询用户单个nft详情
+ * @path POST /privacy/tokens/of/wallet/{wallet}
+ */
+export async function getNftDetail(
+  params: {
+    /** 用户地址 */
+    address: string;
+
+    /** 商户token */
+    accessToken: string;
+
+    /** 合约地址 */
+    contractAddress: string;
+
+    /** token id */
+    tokenId: string;
+  },
+  config?: ApiRequestConfig
+): Promise<
+  ApiResponse<{
+    code: number;
+    data: {
+      token: string; // "0x...",
+      tokenId: string; // "216",
+      metadata: {
+        name: string; // "",
+        image: string; // ""
+      };
+    };
+    message: string; // 'ok'
+  }>
+> {
+  return requestPost<{
+    code: number;
+    data: {
+      token: string; // "0x...",
+      tokenId: string; // "216",
+      metadata: {
+        name: string; // "",
+        image: string; // ""
+      };
+    };
+    message: string;
+  }>(
+    `/privacy/token/of/wallet/${params.address}/${params.contractAddress}/${params.tokenId}`,
+    undefined,
+    {
+      ...config,
+      headers: {
+        Authorization: `Bearer ${params.accessToken}`,
+      },
+    }
+  );
 }
 
 /**

@@ -11,62 +11,63 @@ import type { ApiResponse, ApiRequestConfig } from '../../types';
  */
 export async function getDDCConfig(
   data: {
-  
-  /** 钱包地址
- */
-  address?: string;
-},
+    /** 钱包地址
+     */
+    address?: string;
+  },
   config?: ApiRequestConfig
-): Promise<ApiResponse<{
-  code: number;
-  data: {
-  
-  /** nft 工厂合约的地址  用于部署商户NFT 合约 */
-  nft_factory_address: string;
-  
-  /** membership 工厂合约的地址 */
-  membership_factory_address: string;
-  metadata_url: string;
-  
-  /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在 */
-  nft_address: Array<string>;
-  
-  /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在 */
-  membership_address: Array<string>;
-  network: {
-  chain_id: number;
-  chain_name: string;
-  rpc_url: string;
-  token_symbol: string;
-  explore_url: string;
-};
-};
-  message: string;
-}>> {
+): Promise<
+  ApiResponse<{
+    code: number;
+    data: {
+      /** nft 工厂合约的地址  用于部署商户NFT 合约 */
+      nft_factory_address: string;
+
+      /** membership 工厂合约的地址 */
+      membership_factory_address: string;
+      metadata_url: string;
+
+      /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在 */
+      nft_address: Array<string>;
+
+      /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在 */
+      membership_address: Array<string>;
+      network: {
+        chain_id: number;
+        chain_name: string;
+        rpc_url: string;
+        token_symbol: string;
+        explore_url: string;
+      };
+      authorization_contract_address: string;
+    };
+    message: string;
+  }>
+> {
   return requestPost<{
-  code: number;
-  data: {
-  
-  /** nft 工厂合约的地址  用于部署商户NFT 合约 */
-  nft_factory_address: string;
-  
-  /** membership 工厂合约的地址 */
-  membership_factory_address: string;
-  metadata_url: string;
-  
-  /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在 */
-  nft_address: Array<string>;
-  
-  /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在 */
-  membership_address: Array<string>;
-  network: {
-  chain_id: number;
-  chain_name: string;
-  rpc_url: string;
-  token_symbol: string;
-  explore_url: string;
-};
-};
-  message: string;
-}>(`/ddc/config`, data, config);
+    code: number;
+    data: {
+      /** nft 工厂合约的地址  用于部署商户NFT 合约 */
+      nft_factory_address: string;
+
+      /** membership 工厂合约的地址 */
+      membership_factory_address: string;
+      metadata_url: string;
+
+      /** 如果用户当前钱包地址 mint 了nft, 则返回, 用于判断是否已经存在 */
+      nft_address: Array<string>;
+
+      /** 如果用户当前钱包地址已经有 membership 合约, 则返回, 用于判断是否已经存在 */
+      membership_address: Array<string>;
+      network: {
+        chain_id: number;
+        chain_name: string;
+        rpc_url: string;
+        token_symbol: string;
+        explore_url: string;
+      };
+      authorization_contract_address: string;
+    };
+    message: string;
+  }>(`/ddc/config`, data, config);
 }

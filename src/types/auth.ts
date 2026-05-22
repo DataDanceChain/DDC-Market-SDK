@@ -7,16 +7,15 @@ export interface MerchantInfo {
   domain: string;
   status: string;
   logo: string;
+  authorization_contract_address: string;
 }
 
 export interface MerchantConfig extends ManagerConfig {
   appId: string;
-  authorizationContractAddress?: string;
 }
 
 export interface MerchantParams extends ManagerParams {
   appId: string;
-  authorizationContractAddress?: string;
 }
 
 export interface UserAuthOptions {
@@ -28,7 +27,7 @@ export interface UserAuthResult {
   transactionHash: string;
   walletAddress: string;
   siteId: string;
-  expiresAt: bigint;
+  expiresAt: number;
   blockNumber?: number;
   // hashBound: boolean;
 }
@@ -45,8 +44,8 @@ export interface UserAuthorizationInfo {
   walletAddress: string;
   siteId: string;
   authorized: boolean;
-  expiresAt: bigint;
-  remainingSeconds: bigint;
+  expiresAt: number;
+  remainingSeconds: number;
 }
 
 // 商户授权
