@@ -1,5 +1,6 @@
 import { Signer } from 'ethers';
 import OSS from 'ali-oss';
+import { MerchantAuthSignature, BuildMerchantAuthSignatureInput } from '../types/auth';
 
 export const buildLoginMessage = function (params: {
   address: string;
@@ -71,3 +72,45 @@ export const uplloadOssStsFile = async function (
   });
   return result;
 };
+
+const bytesToHex = (bytes: Uint8Array): string =>
+  Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+
+const getWebCrypto = (): Crypto => {
+  const webCrypto = (globalThis as { crypto?: Crypto }).crypto;
+  if (!webCrypto?.subtle) {
+    throw new Error(
+      'Web Crypto API is not available in this environment. Requires a modern browser or Node.js >= 18.'
+    );
+  }
+  return webCrypto;
+};
+
+/**
+ * 构造商户换 token 所需的 `appId` / `timestamp` / `nonce` / `sign`。
+ * 签名规则：`HMAC-SHA256(appSecret, appId={appId}&timestamp={timestamp}&nonce={nonce})`，digest 为 hex。
+ * 基于 Web Crypto API 实现，可在浏览器和 Node.js (>=18) 中通用。
+ */
+export async function buildMerchantAuthSignature(
+  input: BuildMerchantAuthSignatureInput
+): Promise<MerchantAuthSignature> {
+  const webCrypto = getWebCrypto();
+  const timestamp = input.timestamp ?? String(Math.floor(Date.now() / 1000));
+  const nonce = input.nonce ?? bytesToHex(webCrypto.getRandomValues(new Uint8Array(12)));
+  const payload = `appId=${input.appId}&timestamp=${timestamp}&nonce=${nonce}`;
+
+  const encoder = new TextEncoder();
+  const key = await webCrypto.subtle.importKey(
+    'raw',
+    encoder.encode(input.appSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signatureBuffer = await webCrypto.subtle.sign('HMAC', key, encoder.encode(payload));
+  const sign = bytesToHex(new Uint8Array(signatureBuffer));
+
+  return { appId: input.appId, timestamp, nonce, sign };
+}

@@ -10,12 +10,12 @@
  */
 
 import { ref, toRaw } from 'vue';
-import { DDCNFTManager, getKeyHash, getAddressFromPrivateKey } from '@ddc-market/sdk';
+import { DDCNFTManager, getKeyHash, getAddressFromPrivateKey } from '@ddcmarket/sdk';
 
 // ============================================================================
 // State - User Inputs (fill these)
 // ============================================================================
-const privateKey = ref('f28803c57022b5b83585498b8b45c26eef984aaf9e50ac16131c0fdd4913b509');
+const privateKey = ref('');
 const walletAddress = ref('');
 
 // ============================================================================

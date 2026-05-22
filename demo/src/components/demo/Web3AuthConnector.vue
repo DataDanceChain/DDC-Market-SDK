@@ -16,7 +16,7 @@ import { useWeb3Auth, useSwitchChain } from '@web3auth/modal/vue';
 import { useWalletStore } from '../../stores/wallet';
 import { useWeb3AuthConnect, useWeb3AuthDisconnect, useWeb3AuthUser } from '@web3auth/modal/vue';
 import { useAccount } from '@wagmi/vue';
-import { getSigner, getProvider } from '@ddc-market/sdk';
+import { getSigner, getProvider } from '@ddcmarket/sdk';
 
 // ============================================================================
 // Web3Auth Hooks

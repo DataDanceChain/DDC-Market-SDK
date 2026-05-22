@@ -7,3 +7,5 @@ export * from './ddc';
 export * from './contract';
 export * from './factory';
 export * from './transfer';
+export * from './admin';
+export * from './merchant';

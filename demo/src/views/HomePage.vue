@@ -24,6 +24,14 @@ function navigateToWeb3Auth() {
 function navigateToJsonRpc() {
   router.push('/jsonrpc');
 }
+
+function navigateToAdmin() {
+  router.push('/admin');
+}
+
+function navigateToMerchant() {
+  router.push('/merchant');
+}
 </script>
 
 <template>
@@ -94,6 +102,34 @@ function navigateToJsonRpc() {
             </ul>
             <button class="select-btn btn-jsonrpc">JsonRpcProvider Demo →</button>
           </div>
+
+          <div class="wallet-card" @click="navigateToAdmin">
+            <div class="wallet-icon admin-icon">
+              <span class="icon-text">🛠️</span>
+            </div>
+            <h3>Admin API</h3>
+            <p class="wallet-description">Test admin merchant CRUD APIs with custom base URL and headers</p>
+            <ul class="features">
+              <li>Merchant list query</li>
+              <li>Create and update merchant</li>
+              <li>Disable merchant and inspect errors</li>
+            </ul>
+            <button class="select-btn btn-admin">Admin API Demo →</button>
+          </div>
+
+          <div class="wallet-card" @click="navigateToMerchant">
+            <div class="wallet-icon merchant-icon">
+              <span class="icon-text">🏪</span>
+            </div>
+            <h3>Merchant Auth</h3>
+            <p class="wallet-description">Test merchant authorization flow and App APIs</p>
+            <ul class="features">
+              <li>On-chain authorize & revoke</li>
+              <li>Query authorization status</li>
+              <li>Token list & App merchant APIs</li>
+            </ul>
+            <button class="select-btn btn-merchant">Merchant Auth Demo →</button>
+          </div>
         </div>
       </section>
 
@@ -118,6 +154,16 @@ function navigateToJsonRpc() {
               <li>Issue Membership Tokens</li>
               <li>Create & Query Snapshots</li>
               <li>Verify Membership Status</li>
+            </ul>
+          </div>
+
+          <div class="feature-card">
+            <h3>🛠️ Admin API Workflow</h3>
+            <ul>
+              <li>Query merchant list</li>
+              <li>Create merchant</li>
+              <li>Update merchant info</li>
+              <li>Disable merchant</li>
             </ul>
           </div>
         </div>
@@ -256,6 +302,14 @@ function navigateToJsonRpc() {
   border-color: #f5576c;
 }
 
+.wallet-card:hover.wallet-card:nth-child(4) {
+  border-color: #1677ff;
+}
+
+.wallet-card:hover.wallet-card:nth-child(5) {
+  border-color: #52c41a;
+}
+
 .wallet-icon {
   width: 80px;
   height: 80px;
@@ -277,6 +331,10 @@ function navigateToJsonRpc() {
 
 .jsonrpc-icon {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.merchant-icon {
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
 }
 
 .icon-text {
@@ -354,9 +412,24 @@ function navigateToJsonRpc() {
   color: white;
 }
 
+.btn-admin {
+  background: linear-gradient(135deg, #1677ff 0%, #0f4cbd 100%);
+  color: white;
+}
+
+.btn-merchant {
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+  color: white;
+}
+
 .btn-jsonrpc:hover {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
+.btn-merchant:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.4);
 }
 
 /* Features Section */
@@ -466,6 +539,10 @@ function navigateToJsonRpc() {
   .title {
     font-size: 2rem;
   }
+
+.admin-icon {
+  background: linear-gradient(135deg, #1677ff 0%, #0f4cbd 100%);
+}
 
   .subtitle {
     font-size: 1rem;

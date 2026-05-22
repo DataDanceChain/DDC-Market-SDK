@@ -44,6 +44,22 @@ const router = createRouter({
         title: 'DDC Market SDK Demo - JsonRpcProvider Mode',
       },
     },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('../views/AdminApp.vue'),
+      meta: {
+        title: 'DDC Market SDK Demo - Admin API Demo',
+      },
+    },
+    {
+      path: '/merchant',
+      name: 'merchant',
+      component: () => import('../views/MerchantApp.vue'),
+      meta: {
+        title: 'DDC Market SDK Demo - Merchant Auth Demo',
+      },
+    },
   ],
 });
 

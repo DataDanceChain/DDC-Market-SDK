@@ -18,7 +18,7 @@
  */
 
 import { ref, computed } from 'vue'
-import { MembershipManager, getKeyHash } from '@ddc-market/sdk'
+import { MembershipManager, getKeyHash } from '@ddcmarket/sdk'
 import { useWalletStore } from '../../stores/wallet'
 
 // ============================================================================
@@ -274,7 +274,7 @@ async function querySnapshot() {
     const members = await membershipManager.value.getMemberSnapshot(BigInt(snapshotId.value))
 
     addLog(`Snapshot member count: ${members.length}`, 'success')
-    members.forEach((member, index) => {
+    members.forEach((member: string, index: number) => {
       addLog(`Member ${index + 1}: ${member}`)
     })
   } catch (error: any) {

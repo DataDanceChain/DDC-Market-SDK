@@ -6,6 +6,8 @@
 // Export core managers
 export { DDCNFTManager } from './ddcnft';
 export { MembershipManager } from './membership';
+export { Admin } from './authorization/Admin';
+export { default as Merchant } from './authorization/Merchant';
 
 // Export types
 export type {
@@ -18,6 +20,8 @@ export type {
   JsonRpcProviderDescriptor,
   SignerConfig,
 } from './types';
+
+export type { MerchantParams } from './types/auth';
 
 // Re-export ProviderDescriptor as alias for JsonRpcProviderDescriptor for convenience
 export type { ProviderDescriptor } from './types';
