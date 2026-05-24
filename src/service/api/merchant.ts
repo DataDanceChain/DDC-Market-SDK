@@ -239,6 +239,7 @@ export async function getNftList(
     message: string;
   }>(`/privacy/tokens/of/wallet/${params.address}`, params.page, {
     ...config,
+    baseURL: import.meta.env.API_EXPLORE_BASE_URL || '',
     headers: {
       Authorization: `Bearer ${params.accessToken}`,
     },
@@ -295,6 +296,7 @@ export async function getNftDetail(
     undefined,
     {
       ...config,
+      baseURL: import.meta.env.API_EXPLORE_BASE_URL || '',
       headers: {
         Authorization: `Bearer ${params.accessToken}`,
       },

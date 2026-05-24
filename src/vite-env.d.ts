@@ -7,6 +7,7 @@
 interface ImportMetaEnv {
   // You can add specific variables here for better type safety
   readonly API_BASE_URL?: string;
+  readonly API_EXPLORE_BASE_URL?: string;
   readonly API_TIMEOUT?: string;
   readonly DEBUG?: string;
   readonly MODE: string;

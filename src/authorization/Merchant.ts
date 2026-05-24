@@ -549,7 +549,8 @@ class Merchant extends Base {
   public async queryTokenList(
     appSecret: string,
     address: string,
-    pageNo: number
+    pageNo: number,
+    pageSize: number
   ): Promise<{
     Rows: Array<{
       token: string;
@@ -568,6 +569,7 @@ class Merchant extends Base {
     }
 
     const signature = await buildMerchantAuthSignature({ appId, appSecret });
+    console.log('debug build signature', appId, appSecret, signature);
     const result = await getToken(signature);
 
     if (!result.success) {
@@ -588,7 +590,7 @@ class Merchant extends Base {
       accessToken: tokenData.accessToken,
       page: {
         page: pageNo,
-        pageSize: 100,
+        pageSize: pageSize,
       },
     });
 

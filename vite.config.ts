@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => {
     define: {
       // 将环境变量注入到代码中（按键注入，避免覆盖整个 import.meta.env）
       'import.meta.env.API_BASE_URL': JSON.stringify(env.API_BASE_URL || ''),
+      'import.meta.env.API_EXPLORE_BASE_URL': JSON.stringify(env.API_EXPLORE_BASE_URL || ''),
       'import.meta.env.API_TIMEOUT': JSON.stringify(env.API_TIMEOUT || '30000'),
       'import.meta.env.DEBUG': JSON.stringify(env.DEBUG || 'false'),
     },

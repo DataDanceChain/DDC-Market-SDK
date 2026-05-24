@@ -1,26 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import {
-  Merchant,
-  httpService,
-  getKeyHash,
-  getProvider,
-  getSigner,
-  getAddress,
-} from '@ddcmarket/sdk';
+import { Merchant, getKeyHash, getProvider } from '@ddcmarket/sdk';
 import type { MerchantParams } from '@ddcmarket/sdk';
 
 // ---- Init 配置 ----
-const baseURL = ref('https://dev-mkt-engine.datadance.co/api/v1/');
-// 测试商户
-const appId = ref('app_fgnavuzlw3ncezza');
-const merchantSecret = ref('ff7ca44626cc29b4271c76d9ac7b1fe3828df6310603707d11bce0e919832426');
-// WARNING
+// 测试商户 ID 和 secret (注册后获取)
+// WARNING 测试用户钱包的地址和私钥
 const walletAddress = ref('0x59dcc2997875272F7e3E9cfb3Da7DbAcd0948f85');
 const privateKey = ref('f28803c57022b5b83585498b8b45c26eef984aaf9e50ac16131c0fdd4913b509');
 
 // TestNet Contract
-// WARNING :固定jwt 签发 secret
+// WARNING :拥有 APP 钱包权限的 固定jwt 签发 secret, 从后台获取
 const appSecret = ref('f6b9507af95a30985736eb1824b7255cb506fb7a345de5f326dd7aa439879d9d');
 
 // ---- Chain Auth ----
@@ -34,6 +24,7 @@ const hashPageSize = ref(10);
 // ---- Token List ----
 const nftAddress = ref('0x2b1995528b34c580813cfa05365b5b0f3a16e4cd');
 const nftPageNo = ref(0);
+const nftPageSize = ref(10);
 const tokenId = ref('');
 
 // ---- App APIs ----
@@ -83,8 +74,6 @@ async function handleInit() {
   setStatus('Initializing...');
 
   try {
-    httpService.setBaseURL(baseURL.value);
-
     const provider = getProvider(window.ethereum);
 
     const config: MerchantParams = {
@@ -279,7 +268,8 @@ async function handleQueryTokenList() {
     tokenListResult.value = await inst.queryTokenList(
       merchantSecret.value,
       walletAddress.value,
-      nftPageNo.value
+      nftPageNo.value,
+      nftPageSize.value
     );
     lastResult.value = tokenListResult.value;
     setStatus('Token list retrieved.');
@@ -380,10 +370,6 @@ onMounted(async () => {
     <section class="demo-section">
       <h2>1. 初始化 Merchant</h2>
       <div class="form-grid">
-        <div class="form-item">
-          <label>Base URL</label>
-          <input v-model="baseURL" placeholder="http://localhost:3000" />
-        </div>
         <div class="form-item">
           <label>App ID</label>
           <input v-model="appId" placeholder="app_xxx" />

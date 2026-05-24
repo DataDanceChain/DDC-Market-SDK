@@ -406,6 +406,13 @@ export interface ApiRequestConfig {
   headers?: Record<string, string>;
 
   /**
+   * Override the default base URL for this request.
+   * When set, this URL replaces the instance-level baseURL for this single request.
+   * Useful for calling endpoints on different API gateways (e.g. explore API vs market API).
+   */
+  baseURL?: string;
+
+  /**
    * Request timeout in milliseconds
    */
   timeout?: number;
